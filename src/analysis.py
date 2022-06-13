@@ -34,7 +34,7 @@ def snr(epochs, signal_interval=(0.15, 0.2)):
     return snr
 
 
-def PCA(epochs, n_components=5, )
+def PCA(epochs, n_components=5):
 if __name__ == "__main__":
     data_path = sample.data_path()
     # Load and filter data, set up epochs
