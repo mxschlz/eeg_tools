@@ -35,6 +35,9 @@ def snr(epochs, signal_interval=(0.15, 0.2)):
 
 
 def PCA(epochs, n_components=5):
+    return pca_evokeds
+
+
 if __name__ == "__main__":
     data_path = sample.data_path()
     # Load and filter data, set up epochs
@@ -64,7 +67,7 @@ if __name__ == "__main__":
     n_components = 5
     D, P = np.linalg.eig(C0)  # eigendecomposition of C0
     idx = np.argsort(D)[::-1][0:n_components]   # sort array
-                                                # by descending magnitude
+    # by descending magnitude
     D = D[idx]
     P = P[:, idx]  # rotation matrix
     pca_evokeds = []
