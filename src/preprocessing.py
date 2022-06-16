@@ -1,3 +1,5 @@
+import sys
+sys.path.append("D:/Projects/eeg_tools/src/")
 import glob
 import json
 from mne.preprocessing import ICA
@@ -7,8 +9,28 @@ import mne
 import numpy as np
 import pathlib
 import os
+import setup_eeg_tools as stp
+import analysis
+_scaling = 10**6
 
-# TODO: write run_preprocessing().
+# TODO: write run_pipeline() with **kwargs in config file.
+# TODO: describe workflow of processing data.
+
+def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
+             mapping=None, montage=None):
+    raw_files = []
+    for header_file in header_files:
+        if id in header_file:
+            raw_files.append(mne.io.read_raw_brainvision(
+                header_file, preload=preload))  # read BrainVision files.
+    raw = mne.concatenate_raws(raw_files)  # make raw files
+    if mapping:
+        raw.rename_channels(mapping)
+    if add_ref_ch:
+        raw.add_reference_channels(ref_ch)
+    if montage:
+        raw.set_montage(montage)
+    return raw
 
 
 def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
@@ -23,7 +45,8 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
     ax[1].set(xlabel="Frequency (Hz)", ylabel="μV²/Hz (dB)")
     ax[0].set(xlabel="Frequency (Hz)", ylabel="μV²/Hz (dB)")
     if plot == True:
-        data.plot_psd(ax=ax[0], show=False, exclude=["FCz"])  # FCz has zero voltage at this point.
+        # FCz has zero voltage at this point.
+        data.plot_psd(ax=ax[0], show=False, exclude=["FCz"])
     if notch is not None:  # ZapLine Notch filter
         X = data.get_data().T
         # remove power line noise with the zapline algorithm
@@ -52,6 +75,7 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
             fig_folder / pathlib.Path("ZapLine_filter.pdf"), dpi=800)
     plt.close()
     return data
+
 
 def reref(epochs, type="average", n_jobs=-1, n_resample=50, min_channels=0.25,
           min_corr=0.75, unbroken_time=0.4, plot=True):
@@ -118,8 +142,9 @@ def reref(epochs, type="average", n_jobs=-1, n_resample=50, min_channels=0.25,
         plt.close()
     return epochs_reref
 
+
 def apply_ICA(epochs, reference, n_components=None, method="fastica",
-              threshold="auto", n_interpolate=None):
+              threshold="auto"):
     """
     Run independent component analysis. Fit all epochs to the mne.ICA class, use
     reference_ica.fif to show the algorithm how blinks and saccades look like.
@@ -154,6 +179,7 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
     plt.savefig(fig_folder / pathlib.Path("ICA_results.pdf"), dpi=800)
     plt.close()
     return epochs_ica
+
 
 def autoreject_epochs(epochs,
                       n_interpolate=[1, 4, 8, 16],
@@ -210,5 +236,31 @@ def autoreject_epochs(epochs,
     plt.close()
     return epochs_ar
 
-def run_preprocessing():
-    return
+
+def run_pipeline(raw, config, ica_ref, out_folder, save=True):
+    if config == None:
+        raise FileNotFoundError(
+            "Need config file to preprocess data according to parameters!")
+    else:
+        config = tools_setup.get_file(type="config")
+        if "filtering" in config:
+            filtering(**config)
+    return epochs
+
+if __name__ == "__main__":  # workflow
+    root_dir = pathlib.Path("D:/EEG")
+    cfg = stp.get_file("config")
+    mapping = stp.get_file("mapping")
+    montage = stp.get_file("montage")
+    header_files = stp.get_file("header", dir=root_dir)
+    ica_ref = stp.get_file(type="ica", format=".fif")
+    # r"" == raw string
+    # \b matches on a change from a \w (a word character) to a \W a non word character
+    # \w{6} == six alphanumerical characters
+    pattern = r'\b\w{6}\b'  # RegEx expression to match subject ids (6 alphanumerical characters)
+    ids = stp.get_ids(header_files=header_files, pattern=pattern)
+    for id in ids[:1]:
+        stp.make_folders(root_dir=root_dir, id=id)
+        raw = make_raw(header_files, id, mapping=mapping, montage=montage)
+        stp.save_object(raw, root_dir, id)
+        run_pipeline()
