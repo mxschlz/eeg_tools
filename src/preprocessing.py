@@ -1,20 +1,21 @@
+import analysis
+import setup_eeg_tools as stp
+import os
+import pathlib
+import numpy as np
+import mne
+from matplotlib import pyplot as plt, patches
+from autoreject import AutoReject, Ransac
+from mne.preprocessing import ICA
+import json
+import glob
 import sys
 sys.path.append("D:/Projects/eeg_tools/src/")
-import glob
-import json
-from mne.preprocessing import ICA
-from autoreject import AutoReject, Ransac
-from matplotlib import pyplot as plt, patches
-import mne
-import numpy as np
-import pathlib
-import os
-import setup_eeg_tools as stp
-import analysis
 _scaling = 10**6
 
 # TODO: write run_pipeline() with **kwargs in config file.
 # TODO: describe workflow of processing data.
+
 
 def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
              mapping=None, montage=None):
@@ -63,22 +64,21 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
         data.plot_psd(ax=ax[1], show=False, exclude=["FCz"])
     if lowpass is not None and highpass == None:
         fig.savefig(
-            fig_folder / pathlib.Path("lowpassfilter.pdf"), dpi=800)
+            _fig_folder / pathlib.Path("lowpassfilter.pdf"), dpi=800)
     if highpass is not None and lowpass == None:
         fig.savefig(
-            fig_folder / pathlib.Path("highpassfilter.pdf"), dpi=800)
+            _fig_folder / pathlib.Path("highpassfilter.pdf"), dpi=800)
     if highpass and lowpass is not None:
         fig.savefig(
-            fig_folder / pathlib.Path("bandpassfilter.pdf"), dpi=800)
+            _fig_folder / pathlib.Path("bandpassfilter.pdf"), dpi=800)
     if notch is not None:
         fig.savefig(
-            fig_folder / pathlib.Path("ZapLine_filter.pdf"), dpi=800)
+            _fig_folder / pathlib.Path("ZapLine_filter.pdf"), dpi=800)
     plt.close()
     return data
 
 
-def reref(epochs, type="average", n_jobs=-1, n_resample=50, min_channels=0.25,
-          min_corr=0.75, unbroken_time=0.4, plot=True):
+def reref(epochs, ransac_parameters, type="average", plot=True):
     """
     If type "average": Create a robust average reference by first interpolating the bad channels
     to exclude outliers. Take mean voltage over all inlier channels as reference.
@@ -88,8 +88,7 @@ def reref(epochs, type="average", n_jobs=-1, n_resample=50, min_channels=0.25,
     """
     if type == "average":
         epochs_clean = epochs.copy()
-        ransac = Ransac(n_jobs=n_jobs, n_resample=n_resample, min_channels=min_channels,
-                        min_corr=min_corr, unbroken_time=unbroken_time)  # optimize speed
+        ransac = Ransac(**ransac_parameters)  # optimize speed
         ransac.fit(epochs_clean)
         epochs_clean.average().plot(exclude=[])
         bads = input("Visual inspection for bad sensors: ").split()
@@ -107,7 +106,7 @@ def reref(epochs, type="average", n_jobs=-1, n_resample=50, min_channels=0.25,
         ax[1].set_title("After RANSAC")
         fig.tight_layout()
         fig.savefig(
-            fig_folder / pathlib.Path("RANSAC_results.pdf"), dpi=800)
+            _fig_folder / pathlib.Path("RANSAC_results.pdf"), dpi=800)
         plt.close()
         epochs = epochs_clean.copy()
         epochs_clean.set_eeg_reference(ref_channels="average", projection=True)
@@ -138,7 +137,7 @@ def reref(epochs, type="average", n_jobs=-1, n_resample=50, min_channels=0.25,
         ax[1].set_title(f"{type}, SNR={snr_post:.2f}")
         fig.tight_layout()
         fig.savefig(
-            fig_folder / pathlib.Path(f"{type}_reference.pdf"), dpi=800)
+            _fig_folder / pathlib.Path(f"{type}_reference.pdf"), dpi=800)
         plt.close()
     return epochs_reref
 
@@ -167,16 +166,16 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
                                   label="blinks", plot=False, threshold=cfg["ica"]["threshold"])
         ica.apply(epochs_ica, exclude=ica.labels_["blinks"])  # apply ICA
     ica.plot_components(ica.labels_["blinks"], show=False)
-    plt.savefig(fig_folder / pathlib.Path("ICA_components.pdf"), dpi=800)
+    plt.savefig(_fig_folder / pathlib.Path("ICA_components.pdf"), dpi=800)
     plt.close()
     ica.plot_sources(inst=epochs, show=False, start=0,
                      stop=10, show_scrollbars=False)
-    plt.savefig(fig_folder / pathlib.Path(f"ICA_sources.pdf"), dpi=800)
+    plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.pdf"), dpi=800)
     plt.close()
     snr_post_ica = snr(epochs_ica)
     ica.plot_overlay(epochs.average(), exclude=ica.labels_["blinks"],
                      show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
-    plt.savefig(fig_folder / pathlib.Path("ICA_results.pdf"), dpi=800)
+    plt.savefig(_fig_folder / pathlib.Path("ICA_results.pdf"), dpi=800)
     plt.close()
     return epochs_ica
 
@@ -220,7 +219,7 @@ def autoreject_epochs(epochs,
               title="Mean cross validation error (x 1e6)")
     fig.colorbar(im)
     fig.tight_layout()
-    fig.savefig(fig_folder / pathlib.Path("autoreject_best_fit.pdf"), dpi=800)
+    fig.savefig(_fig_folder / pathlib.Path("autoreject_best_fit.pdf"), dpi=800)
     plt.close()
     evoked_bad = epochs[reject_log.bad_epochs].average()
     snr_ar = snr(epochs_ar)
@@ -228,24 +227,41 @@ def autoreject_epochs(epochs,
     epochs_ar.average().plot(axes=plt.gca(), show=False,
                              titles=f"SNR: {snr_ar:.2f}")
     plt.savefig(
-        fig_folder / pathlib.Path("autoreject_results.pdf"), dpi=800)
+        _fig_folder / pathlib.Path("autoreject_results.pdf"), dpi=800)
     plt.close()
     epochs_ar.plot_drop_log(show=False)
     plt.savefig(
-        fig_folder / pathlib.Path("epochs_drop_log.pdf"), dpi=800)
+        _fig_folder / pathlib.Path("epochs_drop_log.pdf"), dpi=800)
     plt.close()
     return epochs_ar
 
 
-def run_pipeline(raw, config, ica_ref, out_folder, save=True):
+def run_pipeline(raw, config, fig_folder, ica_ref=None, save=True):
+    global _fig_folder
+    _fig_folder = fig_folder
     if config == None:
         raise FileNotFoundError(
             "Need config file to preprocess data according to parameters!")
     else:
-        config = tools_setup.get_file(type="config")
         if "filtering" in config:
-            filtering(**config)
+            raw = filtering(data=raw, **config["filtering"])
+        if "epochs" in config:
+            epochs = mne.Epochs(raw, events=mne.events_from_annotations(raw)[0],
+                                **config["epochs"])
+        if "rereference" in config:
+            epochs = reref(epochs=epochs, ransac_parameters=**config["rereference"])
+        if "ica" in config:
+            epochs = apply_ICA(
+                epochs=epochs, **config["ica"], reference=ica_ref)
+        if "autoreject" in config:
+            epochs = autoreject_epochs(epochs=epochs, **config["autoreject"])
     return epochs
+
+
+def make_evokeds(epochs, event_id):
+    evokeds = [epochs[condition].average() for condition in event_id.keys()]
+    return evokeds
+
 
 if __name__ == "__main__":  # workflow
     root_dir = pathlib.Path("D:/EEG")
@@ -255,12 +271,21 @@ if __name__ == "__main__":  # workflow
     header_files = stp.get_file("header", dir=root_dir)
     ica_ref = stp.get_file(type="ica", format=".fif")
     # r"" == raw string
-    # \b matches on a change from a \w (a word character) to a \W a non word character
+    # \b matches on a change from a \w (a word character) to a \W (non word character)
     # \w{6} == six alphanumerical characters
-    pattern = r'\b\w{6}\b'  # RegEx expression to match subject ids (6 alphanumerical characters)
+    # RegEx expression to match subject ids (6 alphanumerical characters)
+    pattern = r'\b\w{6}\b'
     ids = stp.get_ids(header_files=header_files, pattern=pattern)
     for id in ids[:1]:
         stp.make_folders(root_dir=root_dir, id=id)
+        _fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
         raw = make_raw(header_files, id, mapping=mapping, montage=montage)
         stp.save_object(raw, root_dir, id)
-        run_pipeline()
+        epochs = run_pipeline(
+            raw, config=cfg, ica_ref=ica_ref, fig_folder=_fig_folder)
+        del raw
+        stp.save_object(epochs, root_dir, id)
+        evokeds = make_evokeds(
+            epochs, event_id=cfg["epochs"]["event_id"].keys())
+        stp.save_object(evokeds, root_dir, id)
+        del epochs, evokeds
