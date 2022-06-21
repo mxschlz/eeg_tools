@@ -2,20 +2,10 @@
   "filtering": {
     "highpass": 1,
     "lowpass": 40,
-    "notch": null,
-    "nfft": 400
+    "notch": null
   },
   "epochs": {
-    "event_id_noise": {
-      "deviant": 1,
-      "control": 2,
-      "distance/20": 3,
-      "distance/200": 4,
-      "distance/1000": 5,
-      "distance/2000": 6,
-      "button_press": 7
-    },
-    "event_id_vocal_effort": {
+    "event_id": {
       "deviant": 6,
       "vocal_effort/1": 1,
       "vocal_effort/2": 2,
@@ -32,8 +22,7 @@
   "ica": {
     "n_components": 0.999,
     "method": "fastica",
-    "threshold": 0.9,
-    "reference": "D:/Projects/distance_perception/analysis/reference_ica.fif"
+    "threshold": 0.9
   },
   "autoreject": {
     "n_interpolate": [1, 4, 8, 16],
@@ -43,7 +32,7 @@
     "random_state": null
   },
   "rereference": {
-    "ransac": {
+    "ransac_parameters": {
       "n_resample": 50,
       "min_channels": 0.25,
       "min_corr": 0.75,
@@ -52,8 +41,5 @@
     },
     "type": "average",
     "plot": true
-  },
-  "montage": {
-    "name": "AS-96_REF.bvef"
   }
 }
