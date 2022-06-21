@@ -1,3 +1,5 @@
+import sys
+sys.path.append("D:/Projects/eeg_tools/src/")
 import analysis
 import setup_eeg_tools as stp
 import os
@@ -9,11 +11,8 @@ from autoreject import AutoReject, Ransac
 from mne.preprocessing import ICA
 import json
 import glob
-import sys
-sys.path.append("D:/Projects/eeg_tools/src/")
 _scaling = 10**6
 
-# TODO: write run_pipeline() with **kwargs in config file.
 # TODO: describe workflow of processing data.
 
 
@@ -113,8 +112,8 @@ def reref(epochs, ransac_parameters, type="average", plot=True):
         average_reference = epochs_clean.info["projs"]
         epochs_clean.add_proj(average_reference)
         epochs_clean.apply_proj()
-        snr_pre = snr(epochs)
-        snr_post = snr(epochs_clean)
+        snr_pre = analysis.snr(epochs)
+        snr_post = analysis.snr(epochs_clean)
         epochs_reref = epochs_clean.copy()
     if type == "rest":
         sphere = mne.make_sphere_model("auto", "auto", epochs.info)
@@ -123,12 +122,12 @@ def reref(epochs, ransac_parameters, type="average", plot=True):
         forward = mne.make_forward_solution(
             epochs.info, trans=None, src=src, bem=sphere)
         epochs_reref = epochs.copy().set_eeg_reference("REST", forward=forward)
-        snr_pre = snr(epochs)
-        snr_post = snr(epochs_reref)
+        snr_pre = analysis.snr(epochs)
+        snr_post = analysis.snr(epochs_reref)
     if type == "lm":
         epochs_reref = epochs.copy().set_eeg_reference(["TP9", "TP10"])
-        snr_pre = snr(epochs)
-        snr_post = snr(epochs_reref)
+        snr_pre = analysis.snr(epochs)
+        snr_post = analysis.snr(epochs_reref)
     if plot == True:
         fig, ax = plt.subplots(2)
         epochs.average().plot(axes=ax[0], show=False)
@@ -150,7 +149,7 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
     Apply ica and save components to keep track of the excluded component topography.
     """
     epochs_ica = epochs.copy()
-    snr_pre_ica = snr(epochs_ica)
+    snr_pre_ica = analysis.snr(epochs_ica)
     # ar = AutoReject(n_interpolate=n_interpolate, n_jobs=n_jobs)
     # ar.fit(epochs_ica)
     # epochs_ar, reject_log = ar.transform(epochs_ica, return_log=True)
@@ -158,7 +157,7 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
     # ica.fit(epochs_ica[~reject_log.bad_epochs])
     ica.fit(epochs_ica)
     # reference ICA containing blink and saccade components.
-    ref = mne.preprocessing.read_ica(fname=reference)
+    ref = reference
     # .labels_ dict must contain "blinks" key with int values.
     components = ref.labels_["blinks"]
     for component in components:
@@ -172,7 +171,7 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
                      stop=10, show_scrollbars=False)
     plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.pdf"), dpi=800)
     plt.close()
-    snr_post_ica = snr(epochs_ica)
+    snr_post_ica = analysis.snr(epochs_ica)
     ica.plot_overlay(epochs.average(), exclude=ica.labels_["blinks"],
                      show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
     plt.savefig(_fig_folder / pathlib.Path("ICA_results.pdf"), dpi=800)
@@ -222,7 +221,7 @@ def autoreject_epochs(epochs,
     fig.savefig(_fig_folder / pathlib.Path("autoreject_best_fit.pdf"), dpi=800)
     plt.close()
     evoked_bad = epochs[reject_log.bad_epochs].average()
-    snr_ar = snr(epochs_ar)
+    snr_ar = analysis.snr(epochs_ar)
     plt.plot(evoked_bad.times, evoked_bad.data.T * 1e06, 'r', zorder=-1)
     epochs_ar.average().plot(axes=plt.gca(), show=False,
                              titles=f"SNR: {snr_ar:.2f}")
@@ -247,9 +246,9 @@ def run_pipeline(raw, config, fig_folder, ica_ref=None, save=True):
             raw = filtering(data=raw, **config["filtering"])
         if "epochs" in config:
             epochs = mne.Epochs(raw, events=mne.events_from_annotations(raw)[0],
-                                **config["epochs"])
+                                **config["epochs"], preload=True)
         if "rereference" in config:
-            epochs = reref(epochs=epochs, ransac_parameters=**config["rereference"])
+            epochs = reref(epochs=epochs, **config["rereference"])
         if "ica" in config:
             epochs = apply_ICA(
                 epochs=epochs, **config["ica"], reference=ica_ref)
@@ -258,18 +257,17 @@ def run_pipeline(raw, config, fig_folder, ica_ref=None, save=True):
     return epochs
 
 
-def make_evokeds(epochs, event_id):
-    evokeds = [epochs[condition].average() for condition in event_id.keys()]
+def make_evokeds(epochs):
+    evokeds = [epochs[condition].average() for condition in epochs.event_id.keys()]
     return evokeds
-
 
 if __name__ == "__main__":  # workflow
     root_dir = pathlib.Path("D:/EEG")
-    cfg = stp.get_file("config")
-    mapping = stp.get_file("mapping")
-    montage = stp.get_file("montage")
-    header_files = stp.get_file("header", dir=root_dir)
-    ica_ref = stp.get_file(type="ica", format=".fif")
+    cfg = stp.load_file("config")
+    mapping = stp.load_file("mapping")
+    montage = stp.load_file("montage")
+    header_files = stp.load_file("header", dir=root_dir)
+    ica_ref = stp.load_file(type="ica", format=".fif")
     # r"" == raw string
     # \b matches on a change from a \w (a word character) to a \W (non word character)
     # \w{6} == six alphanumerical characters
@@ -283,9 +281,8 @@ if __name__ == "__main__":  # workflow
         stp.save_object(raw, root_dir, id)
         epochs = run_pipeline(
             raw, config=cfg, ica_ref=ica_ref, fig_folder=_fig_folder)
-        del raw
+        del raw  #  save working memory
         stp.save_object(epochs, root_dir, id)
-        evokeds = make_evokeds(
-            epochs, event_id=cfg["epochs"]["event_id"].keys())
+        evokeds = make_evokeds(epochs)
         stp.save_object(evokeds, root_dir, id)
-        del epochs, evokeds
+        del epochs, evokeds  # save working memory

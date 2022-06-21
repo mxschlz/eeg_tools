@@ -8,11 +8,10 @@ from matplotlib import pyplot as plt
 _file_format = ".json"
 _dir = pathlib.Path(os.getcwd())
 
-# TODO: write function to get header files sorted by subject.
 # TODO: write function to create config file.
+# TODO: make quality check.
 
-
-def get_file(type="mapping", dir=_dir, format=_file_format):
+def load_file(type="mapping", dir=_dir, format=_file_format):
     if type == "header":
         header_files = []
         for root, dirs, files in os.walk(dir):
@@ -46,6 +45,10 @@ def get_file(type="mapping", dir=_dir, format=_file_format):
             with open(file_path) as file:
                 lf = json.load(file)
             return lf
+
+
+def save_file(file):
+    pass
 
 
 def get_ids(header_files, pattern):
@@ -82,20 +85,28 @@ def save_object(data, root_dir, id, overwrite=True):
                 folder_path = pathlib.Path(root) / "epochs"
                 data.save(f"{folder_path}\\{id}-epo.fif", overwrite=overwrite)
                 break
-            if isinstance(data, mne.Evoked):
+            if isinstance(data, mne.Evoked) or isinstance(data, list):
                 folder_path = pathlib.Path(root) / "evokeds"
-                data.save(f"{folder_path}\\{id}-ave.fif", overwrite=overwrite)
+                if isinstance(data, list):
+                    mne.write_evokeds(
+                        f"{folder_path}\\{id}-ave.fif", data, overwrite=overwrite)
+                else:
+                    data.save(f"{folder_path}\\{id}-ave.fif",
+                              overwrite=overwrite)
                 break
             else:
                 print("Data needs to be of type mne.io.Raw, mne.Epochs or mne.Evoked!")
 
 
-def read_object():
+def read_object(data):
     pass
 
 
 def qc(step="rereference"):
-    print("Sucessfully created preprocessing quality checks!")
+    fig, ax = plt.subplots()
+    if step == "rereference":
+
+    print(f"Sucessfully created {step} quality check!")
 
 
 def make_config(config_dir, config_format=".json"):
@@ -104,11 +115,11 @@ def make_config(config_dir, config_format=".json"):
 
 if __name__ == "__main__":  # workflow
     root_dir = pathlib.Path("D:/EEG")
-    cfg = get_file("config")
-    mapping = get_file("mapping")
-    montage = get_file("montage")
-    header_files = get_file("header", dir=root_dir)
-    ica_ref = get_file(type="ica", format=".fif")
+    cfg = load_file("config")
+    mapping = load_file("mapping")
+    montage = load_file("montage")
+    header_files = load_file("header", dir=root_dir)
+    ica_ref = load_file(type="ica", format=".fif")
     pattern = r'\b\w{6}\b'
     ids = get_ids(header_files=header_files, pattern=pattern)
     for id in ids[:1]:
