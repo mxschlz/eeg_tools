@@ -45,13 +45,13 @@ def PCA(epochs, n_components=5):
     X = epochs.get_data()
     pca = UnsupervisedSpatialFilter(PCA(n_components), average=False)
     pca_data = pca.fit_transform(X)
-    ev = mne.EvokedArray(np.mean(pca_data, axis=0),
+    evoked = mne.EvokedArray(np.mean(pca_data, axis=0),
                          mne.create_info(n_components, epochs.info['sfreq'],
                                          ch_types='eeg'), tmin=epochs.tmin)
-    return ev, pca_data
+    return evoked, pca_data
 
 
-def quality_check(ids, fig_size=(30,30)):
+def quality_check(ids, fig_size=(60,60)):
     qc_path = "D:/EEG/vocal_effort/qc"
     if not os.path.isdir(qc_path):
         os.makedirs(pathlib.Path(qc_path))
@@ -61,7 +61,7 @@ def quality_check(ids, fig_size=(30,30)):
         axs_size = int(round(np.sqrt(len(ids)) + 0.5))  # round up
         fig, axs = plt.subplots(axs_size, axs_size, figsize=fig_size)
         axs = axs.flatten()
-        for i, id in enumerate(ids[:5]):
+        for i, id in enumerate(ids[:10]):
             _fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
             figures = os.listdir(_fig_folder)
             figure_path = _fig_folder / figures[n]

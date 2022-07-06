@@ -308,7 +308,9 @@ if __name__ == "__main__":  # workflow
     epochs = mne.Epochs(raw, events, event_id, tmin, tmax, proj=False,
                         picks=picks, baseline=None, preload=True,
                         verbose=False)
-
+    evokeds = epochs.average(by_event_type=True)
+    evokeds = mne.grand_average()
+    evokeds = ignore_conds(evokeds, "button_press")
     root_dir = pathlib.Path("D:/EEG")
     cfg = stp.load_file("config", dir=root_dir)
     mapping = stp.load_file("mapping", dir=root_dir)
