@@ -2,43 +2,81 @@ from matplotlib import pyplot as plt
 import mne
 import numpy as np
 from mne.datasets import sample
-_scaling = 10**6
+from mne.decoding import UnsupervisedSpatialFilter
+from sklearn.decomposition import PCA
+import sys
+sys.path.append("D:/Projects/eeg_tools/src/")
+import setup_eeg_tools as set
+import pathlib
+import os
 
 # TODO: make PCA() executable for evoked objects too.
+# TODO: quality check --> take all the .jpg files for every subject and plot them into one plot.
 
 
 def noise_rms(epochs):
-    global scaling
     epochs_tmp = epochs.copy()
-    n_epochs = epochs.get_data().shape[0]
+    n_epochs = epochs_tmp.get_data().shape[0]
+    if not n_epochs % 2 == 0:
+        epochs_tmp = epochs_tmp[:-1]
+    n_epochs = epochs_tmp.get_data().shape[0]
     for i in range(n_epochs):
         if not i % 2:
             epochs_tmp.get_data()[i, :, :] = -epochs_tmp.get_data()[i, :, :]
     evoked = epochs_tmp.average().get_data()
-    rms = np.sqrt(np.mean(evoked**2)) * _scaling
+    rms = np.sqrt(np.mean(evoked**2))
     del epochs_tmp
-    return rms
+    return rms, evoked
 
 
-def snr(epochs, signal_interval=(0.15, 0.2)):
-    """
-    Compute signal-to-noise ratio. Take root mean square of noise
-    plus signal (interval where evoked activity is expected)
-    and return the quotient.
-    """
-    signal = epochs.copy()
-    signal.crop(signal_interval[0], signal_interval[1])
-    n_rms = noise_rms(epochs)
-    s_rms = np.sqrt(np.mean(signal.average().get_data()**2)) * _scaling
-    snr = s_rms / n_rms  # signal rms divided by noise rms
+def snr(epochs):
+    signals = []
+    n_rms, n_evoked = noise_rms(epochs)
+    for epoch in epochs:
+        signal = epoch - n_evoked
+        signals.append(signal)
+    signals = np.array(signals)
+    s_rms = np.sqrt(np.mean(signals**2, axis=0))
+    snr = np.mean(s_rms/n_rms)  # signal rms divided by noise rms
     return snr
 
 
 def PCA(epochs, n_components=5):
-    return pca_evokeds
+    X = epochs.get_data()
+    pca = UnsupervisedSpatialFilter(PCA(n_components), average=False)
+    pca_data = pca.fit_transform(X)
+    ev = mne.EvokedArray(np.mean(pca_data, axis=0),
+                         mne.create_info(n_components, epochs.info['sfreq'],
+                                         ch_types='eeg'), tmin=epochs.tmin)
+    return ev, pca_data
 
 
+def quality_check(ids, fig_size=(30,30)):
+    qc_path = "D:/EEG/vocal_effort/qc"
+    if not os.path.isdir(qc_path):
+        os.makedirs(pathlib.Path(qc_path))
+    _fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
+    n_plots = len(os.listdir(fig_folder))
+    for n, subplots in enumerate(range(n_plots)):
+        axs_size = int(round(np.sqrt(len(ids)) + 0.5))  # round up
+        fig, axs = plt.subplots(axs_size, axs_size, figsize=fig_size)
+        axs = axs.flatten()
+        for i, id in enumerate(ids[:5]):
+            _fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
+            figures = os.listdir(_fig_folder)
+            figure_path = _fig_folder / figures[n]
+            img = plt.imread(figure_path)
+            axs[i].imshow(img)
+            axs[i].set_axis_off()
+            fig.subplots_adjust(wspace=0, hspace=0)
+        plt.savefig(pathlib.Path(qc_path) / figures[n])
+        plt.close()
+
+n_plots=1
 if __name__ == "__main__":
+    root_dir = pathlib.Path("D:/EEG")
+    header_files = set.load_file(type="header", dir=root_dir)
+    ids = set.get_ids(header_files)
     data_path = sample.data_path()
     # Load and filter data, set up epochs
     meg_path = data_path / 'MEG' / 'sample'
