@@ -8,8 +8,20 @@ from matplotlib import pyplot as plt
 _file_format = ".json"
 _dir = pathlib.Path(os.getcwd())
 
-# TODO: write function to create config file.
-# TODO: make quality check.
+
+# TODO: fix search().
+# TODO: implement search function into other functions such as load_file().
+# TODO: make get_ids() more elegant so that reg ex patterns are found more easily.
+# TODO: fix read_object().
+
+def search(dir, format):
+    files = []
+    for root, dirs, files in os.walk(dir):
+        for file in files:
+            if file.endswith(format):
+                files.append(os.path.join(root, file))
+    return files
+
 
 def load_file(type="mapping", dir=_dir, format=_file_format):
     if type == "header":
@@ -50,8 +62,11 @@ def load_file(type="mapping", dir=_dir, format=_file_format):
 def save_file(file):
     pass
 
-
-def get_ids(header_files, pattern):
+# r"" == raw string
+# \b matches on a change from a \w (a word character) to a \W (non word character)
+# \w{6} == six alphanumerical characters
+# RegEx expression to match subject ids (6 alphanumerical characters)
+def get_ids(header_files, pattern=r'\b\w{6}\b'):
     ids = []
     for header_file in header_files:
         match = re.search(pattern=pattern, string=header_file)
@@ -67,9 +82,9 @@ def make_folders(root_dir, id=None, folders=["epochs", "raw", "evokeds", "figure
                 folder_path = pathlib.Path(root) / folder
                 if not os.path.isdir(folder_path):
                     os.makedirs(folder_path)
-                    print(f"{folder} in {id} successfully generated!")
+                    print(f"{folder} folder in {id} successfully generated!")
                 else:
-                    print(f"{folder} already exists in {id}!")
+                    print(f"{folder} folder already exists in {id}!")
         else:
             continue
 
@@ -95,19 +110,35 @@ def save_object(data, root_dir, id, overwrite=True):
                               overwrite=overwrite)
                 break
             else:
-                print("Data needs to be of type mne.io.Raw, mne.Epochs or mne.Evoked!")
+                print("Data needs to be an mne object of type mne.io.Raw, mne.Epochs or mne.Evoked!")
 
 
-def read_object(data):
-    pass
+def read_object(data_type, root_dir, id):
+    for root, dirs, files in os.walk(root_dir):
+        if root.endswith(id):
+            if data_type == "raw":
+                folder_path = pathlib.Path(root) / "raw"
+                raw = mne.io.read_raw_fif(f"{folder_path}\\{id}_raw.fif", preload=True)
+                return raw
+            if data_type == "epochs":
+                folder_path = pathlib.Path(root) / "epochs"
+                epochs = mne.read_epochs(f"{folder_path}\\{id}-epo.fif", preload=True)
+                return epochs
+            if data_type == "evokeds":
+                folder_path = pathlib.Path(root) / "evokeds"
+                evokeds = mne.read_epochs(f"{folder_path}\\{id}-ave.fif", preload=True)
+                return evokeds
 
-
-def qc(step="rereference"):
-    fig, ax = plt.subplots()
-    if step == "rereference":
-
-    print(f"Sucessfully created {step} quality check!")
-
+def check_id(id, root_dir):
+    for root, dirs, files in os.walk(root_dir):
+        if root.endswith(id):
+            evokeds_path = pathlib.Path(root) / "evokeds" / f"{id}-ave.fif"
+            if not os.path.isdir(evokeds_path):
+                print(f"Subject has not been processed yet.")
+                return False
+            else:
+                print(f"{id} has been processed already.")
+                return True
 
 def make_config(config_dir, config_format=".json"):
     pass
@@ -120,8 +151,8 @@ if __name__ == "__main__":  # workflow
     montage = load_file("montage")
     header_files = load_file("header", dir=root_dir)
     ica_ref = load_file(type="ica", format=".fif")
-    pattern = r'\b\w{6}\b'
-    ids = get_ids(header_files=header_files, pattern=pattern)
+    ids = get_ids(header_files=header_files)
+    id = ids[0]
     for id in ids[:1]:
         make_folders(root_dir=root_dir, id=id)
         raw = make_raw(header_files, id, mapping=mapping, montage=montage)
