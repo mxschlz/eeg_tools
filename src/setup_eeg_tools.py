@@ -132,13 +132,13 @@ def read_object(data_type, root_dir, id):
 def check_id(id, root_dir):
     for root, dirs, files in os.walk(root_dir):
         if root.endswith(id):
-            evokeds_path = pathlib.Path(root) / "evokeds" / f"{id}-ave.fif"
-            if not os.path.isdir(evokeds_path):
+            evokeds_fname = pathlib.Path(root) / "evokeds" / f"{id}-ave.fif"
+            if not os.path.exists(evokeds_fname):
                 print(f"Subject has not been processed yet.")
-                return False
+                # return False
             else:
                 print(f"{id} has been processed already.")
-                return True
+                # return True
 
 def make_config(config_dir, config_format=".json"):
     pass
