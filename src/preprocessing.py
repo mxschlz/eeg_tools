@@ -1,23 +1,59 @@
 import sys
 sys.path.append("D:/Projects/eeg_tools/src/")
-import analysis
-import setup_eeg_tools as stp
-import os
-import pathlib
-import numpy as np
-import mne
-from matplotlib import pyplot as plt, patches
-from autoreject import AutoReject, Ransac
-from mne.preprocessing import ICA
-import json
 import glob
-_scaling = 10**6
+import json
+from mne.preprocessing import ICA
+from autoreject import AutoReject, Ransac
+from matplotlib import pyplot as plt, patches
+import mne
+import numpy as np
+import pathlib
+import os
+import setup_eeg_tools as stp
+import analysis
+from mne.datasets import sample
+
 
 # TODO: describe workflow of processing data.
+# TODO: change root_dir so that it is applicable for every PC.
+# TODO: go through all the functions and make them more elegant.
+
+# default prerequisites:
+root_dir = pathlib.Path("D:/EEG")
+cfg = stp.load_file("config", dir=root_dir)
+ica_ref = stp.load_file(type="ica", dir=root_dir)
+mapping = stp.load_file("mapping", dir=root_dir)
+montage = stp.load_file("montage", dir=root_dir)
+
+def run_pipeline(raw, fig_folder, config=cfg, ica_ref=ica_ref):
+    global _fig_folder
+    _fig_folder = fig_folder
+    if config == None:
+        raise FileNotFoundError(
+            "Need config file to preprocess data according to parameters!")
+    else:
+        if "filtering" in config:
+            raw = filtering(data=raw, **config["filtering"])
+        if "epochs" in config:
+            epochs = mne.Epochs(raw, events=mne.events_from_annotations(raw)[0],
+                                **config["epochs"], preload=True)
+            epochs.plot(show=False, show_scalebars=False, show_scrollbars=False, n_channels=65)
+            plt.savefig(_fig_folder / pathlib.Path("epochs.jpg"), dpi=800)
+            plt.close()
+        if "rereference" in config:
+            epochs = reref(epochs=epochs, **config["rereference"])
+        if "ica" in config:
+            epochs = apply_ICA(
+                epochs=epochs, **config["ica"], reference=ica_ref)
+        if "autoreject" in config:
+            epochs = autoreject_epochs(epochs=epochs, **config["autoreject"])
+    return epochs
 
 
 def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
-             mapping=None, montage=None):
+             mapping=mapping, montage=montage, fig_folder=None, plot=True):
+    global _fig_folder
+    _fig_folder = fig_folder
     raw_files = []
     for header_file in header_files:
         if id in header_file:
@@ -30,6 +66,10 @@ def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
         raw.add_reference_channels(ref_ch)
     if montage:
         raw.set_montage(montage)
+    if plot is True and fig_folder is not None:
+        raw.plot(show=False, show_scrollbars=False, show_scalebars=False, start=2000.0, n_channels=65)
+        plt.savefig(_fig_folder / pathlib.Path("raw.jpg"), dpi=800)
+        plt.close()
     return raw
 
 
@@ -63,16 +103,16 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
         data.plot_psd(ax=ax[1], show=False, exclude=["FCz"])
     if lowpass is not None and highpass == None:
         fig.savefig(
-            _fig_folder / pathlib.Path("lowpassfilter.pdf"), dpi=800)
+            _fig_folder / pathlib.Path("lowpassfilter.jpg"), dpi=800)
     if highpass is not None and lowpass == None:
         fig.savefig(
-            _fig_folder / pathlib.Path("highpassfilter.pdf"), dpi=800)
+            _fig_folder / pathlib.Path("highpassfilter.jpg"), dpi=800)
     if highpass and lowpass is not None:
         fig.savefig(
-            _fig_folder / pathlib.Path("bandpassfilter.pdf"), dpi=800)
+            _fig_folder / pathlib.Path("bandpassfilter.jpg"), dpi=800)
     if notch is not None:
         fig.savefig(
-            _fig_folder / pathlib.Path("ZapLine_filter.pdf"), dpi=800)
+            _fig_folder / pathlib.Path("ZapLine_filter.jpg"), dpi=800)
     plt.close()
     return data
 
@@ -105,7 +145,7 @@ def reref(epochs, ransac_parameters, type="average", plot=True):
         ax[1].set_title("After RANSAC")
         fig.tight_layout()
         fig.savefig(
-            _fig_folder / pathlib.Path("RANSAC_results.pdf"), dpi=800)
+            _fig_folder / pathlib.Path("RANSAC_results.jpg"), dpi=800)
         plt.close()
         epochs = epochs_clean.copy()
         epochs_clean.set_eeg_reference(ref_channels="average", projection=True)
@@ -136,7 +176,7 @@ def reref(epochs, ransac_parameters, type="average", plot=True):
         ax[1].set_title(f"{type}, SNR={snr_post:.2f}")
         fig.tight_layout()
         fig.savefig(
-            _fig_folder / pathlib.Path(f"{type}_reference.pdf"), dpi=800)
+            _fig_folder / pathlib.Path(f"{type}_reference.jpg"), dpi=800)
         plt.close()
     return epochs_reref
 
@@ -161,20 +201,20 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
     # .labels_ dict must contain "blinks" key with int values.
     components = ref.labels_["blinks"]
     for component in components:
-        mne.preprocessing.corrmap([ref, ica], template=(0, components[component]),
+        mne.preprocessing.corrmap([ref, ica], template=(0, component),
                                   label="blinks", plot=False, threshold=cfg["ica"]["threshold"])
         ica.apply(epochs_ica, exclude=ica.labels_["blinks"])  # apply ICA
     ica.plot_components(ica.labels_["blinks"], show=False)
-    plt.savefig(_fig_folder / pathlib.Path("ICA_components.pdf"), dpi=800)
+    plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
     plt.close()
     ica.plot_sources(inst=epochs, show=False, start=0,
                      stop=10, show_scrollbars=False)
-    plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.pdf"), dpi=800)
+    plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
     plt.close()
     snr_post_ica = analysis.snr(epochs_ica)
     ica.plot_overlay(epochs.average(), exclude=ica.labels_["blinks"],
                      show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
-    plt.savefig(_fig_folder / pathlib.Path("ICA_results.pdf"), dpi=800)
+    plt.savefig(_fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
     plt.close()
     return epochs_ica
 
@@ -218,7 +258,7 @@ def autoreject_epochs(epochs,
               title="Mean cross validation error (x 1e6)")
     fig.colorbar(im)
     fig.tight_layout()
-    fig.savefig(_fig_folder / pathlib.Path("autoreject_best_fit.pdf"), dpi=800)
+    fig.savefig(_fig_folder / pathlib.Path("autoreject_best_fit.jpg"), dpi=800)
     plt.close()
     evoked_bad = epochs[reject_log.bad_epochs].average()
     snr_ar = analysis.snr(epochs_ar)
@@ -226,54 +266,61 @@ def autoreject_epochs(epochs,
     epochs_ar.average().plot(axes=plt.gca(), show=False,
                              titles=f"SNR: {snr_ar:.2f}")
     plt.savefig(
-        _fig_folder / pathlib.Path("autoreject_results.pdf"), dpi=800)
+        _fig_folder / pathlib.Path("autoreject_results.jpg"), dpi=800)
     plt.close()
     epochs_ar.plot_drop_log(show=False)
     plt.savefig(
-        _fig_folder / pathlib.Path("epochs_drop_log.pdf"), dpi=800)
+        _fig_folder / pathlib.Path("epochs_drop_log.jpg"), dpi=800)
     plt.close()
     return epochs_ar
 
 
-def run_pipeline(raw, config, fig_folder, ica_ref=None, save=True):
+def make_evokeds(epochs, fig_folder=None, plot=True):
     global _fig_folder
     _fig_folder = fig_folder
-    if config == None:
-        raise FileNotFoundError(
-            "Need config file to preprocess data according to parameters!")
-    else:
-        if "filtering" in config:
-            raw = filtering(data=raw, **config["filtering"])
-        if "epochs" in config:
-            epochs = mne.Epochs(raw, events=mne.events_from_annotations(raw)[0],
-                                **config["epochs"], preload=True)
-        if "rereference" in config:
-            epochs = reref(epochs=epochs, **config["rereference"])
-        if "ica" in config:
-            epochs = apply_ICA(
-                epochs=epochs, **config["ica"], reference=ica_ref)
-        if "autoreject" in config:
-            epochs = autoreject_epochs(epochs=epochs, **config["autoreject"])
-    return epochs
-
-
-def make_evokeds(epochs):
-    evokeds = [epochs[condition].average() for condition in epochs.event_id.keys()]
+    evokeds = [epochs[condition].average()
+               for condition in epochs.event_id.keys()]
+    if plot is True and fig_folder is not None:
+        snr = analysis.snr(epochs)
+        avrgd = mne.grand_average(evokeds)
+        avrgd.plot_joint(show=False, title=f"SNR: {snr:.2f}")
+        plt.savefig(_fig_folder / pathlib.Path("evokeds.jpg", dpi=800))
+        plt.close()
     return evokeds
 
+
 if __name__ == "__main__":  # workflow
+    data_path = sample.data_path()
+    # Load and filter data, set up epochs
+    meg_path = data_path / 'MEG' / 'sample'
+    raw_fname = meg_path / 'sample_audvis_filt-0-40_raw.fif'
+    event_fname = meg_path / 'sample_audvis_filt-0-40_raw-eve.fif'
+    tmin, tmax = -0.1, 0.3
+    event_id = dict(aud_l=1, aud_r=2, vis_l=3, vis_r=4)
+
+    raw = mne.io.read_raw_fif(raw_fname, preload=True)
+    raw.filter(1, 20, fir_design='firwin')
+    events = mne.read_events(event_fname)
+
+    picks = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
+                           exclude='bads')
+
+    epochs = mne.Epochs(raw, events, event_id, tmin, tmax, proj=False,
+                        picks=picks, baseline=None, preload=True,
+                        verbose=False)
+
     root_dir = pathlib.Path("D:/EEG")
-    cfg = stp.load_file("config")
-    mapping = stp.load_file("mapping")
-    montage = stp.load_file("montage")
+    cfg = stp.load_file("config", dir=root_dir)
+    mapping = stp.load_file("mapping", dir=root_dir)
+    montage = stp.load_file("montage", dir=root_dir)
     header_files = stp.load_file("header", dir=root_dir)
-    ica_ref = stp.load_file(type="ica", format=".fif")
+    ica_ref = stp.load_file(type="ica", dir=root_dir, format=".fif")
     # r"" == raw string
     # \b matches on a change from a \w (a word character) to a \W (non word character)
     # \w{6} == six alphanumerical characters
     # RegEx expression to match subject ids (6 alphanumerical characters)
-    pattern = r'\b\w{6}\b'
-    ids = stp.get_ids(header_files=header_files, pattern=pattern)
+    re_pattern = r'\b\w{6}\b'
+    ids = stp.get_ids(header_files=header_files, pattern=re_pattern)
     for id in ids[:1]:
         stp.make_folders(root_dir=root_dir, id=id)
         _fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
@@ -281,7 +328,7 @@ if __name__ == "__main__":  # workflow
         stp.save_object(raw, root_dir, id)
         epochs = run_pipeline(
             raw, config=cfg, ica_ref=ica_ref, fig_folder=_fig_folder)
-        del raw  #  save working memory
+        del raw  # save working memory
         stp.save_object(epochs, root_dir, id)
         evokeds = make_evokeds(epochs)
         stp.save_object(evokeds, root_dir, id)
