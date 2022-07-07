@@ -37,7 +37,7 @@ def run_pipeline(raw, fig_folder, config=cfg, ica_ref=ica_ref, exclude_events=7)
             raw = filtering(data=raw, **config["filtering"])
         if "epochs" in config:
             events = mne.events_from_annotations(raw)[0]
-            events = mne.pick_events(events, exclude=exclude_events)
+            events = mne.pick_events(mne.events_from_annotations(raw)[0], exclude=exclude_events)
             epochs = mne.Epochs(raw, events=events,
                                 **config["epochs"], preload=True)
             epochs.plot(show=False, show_scalebars=False, show_scrollbars=False, n_channels=20)
