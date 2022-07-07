@@ -5,74 +5,51 @@ import re
 import json
 import mne
 from matplotlib import pyplot as plt
+import fnmatch
 _file_format = ".json"
 _dir = pathlib.Path(os.getcwd())
 
 
-# TODO: fix search().
-# TODO: implement search function into other functions such as load_file().
+# TODO: implement find() into other functions such as load_file().
 # TODO: make get_ids() more elegant so that reg ex patterns are found more easily.
 # TODO: fix read_object().
 
-def find_name(name, path):
-    for root, dirs, files in os.walk(path):
-        if name in files:
-            return os.path.join(root, name)
 
-def find(name, path, mode="all"):
+def find(path, mode="all", pattern=None, name=None):
     """
-    Mode can be "pattern", "all", or "first."
+    Mode can be "pattern" or "name".
     """
-    result = []
-    for root, dirs, files in os.walk(path):
-        if name in files:
-            result.append(os.path.join(root, name))
-    return result
-
-def find_pattern(pattern, path):
-    result = []
-    for root, dirs, files in os.walk(path):
-        for name in files:
-            if fnmatch.fnmatch(name, pattern):
+    if mode == "name":
+        result = []
+        for root, dirs, files in os.walk(path):
+            if name in files:
                 result.append(os.path.join(root, name))
-    return result
-
-find('*.txt', '/path/to/dir')
-
-def load_file(type="mapping", dir=_dir, format=_file_format):
-    if type == "header":
-        header_files = []
-        for root, dirs, files in os.walk(dir):
-            for file in files:
-                if file.endswith(".vhdr"):
-                    header_files.append(os.path.join(root, file))
-        if len(header_files) == 0:
-            print("No .vhdr files found!")
-        return header_files
-    elif type == "montage":
-        file_format = ".bvef"
-        for root, dirs, files in os.walk(dir):
-            for file in files:
-                if file.endswith(f"{file_format}"):
-                    file_path = str((os.path.join(root, file)))
-                    montage = mne.channels.read_custom_montage(fname=file_path)
-                    return montage
-    elif type == "ica":
-        file_format = ".fif"
-        for root, dirs, files in os.walk(dir):
-            for file in files:
-                if file.endswith(f"{type}{file_format}"):
-                    file_path = str((os.path.join(root, file)))
-                    ica_ref = mne.preprocessing.read_ica(file_path)
-                    return ica_ref
+    if mode == "pattern":
+        result = []
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                if fnmatch.fnmatch(name, pattern):
+                    result.append(os.path.join(root, name))
+    if len(result) == 1:
+        return result[0]
     else:
-        for root, dirs, files in os.walk(dir):
-            for file in files:
-                if file.endswith(f"{type}{format}"):
-                    file_path = str((os.path.join(root, file)))
-            with open(file_path) as file:
-                lf = json.load(file)
-            return lf
+        return result
+
+
+def load_file(type="mapping", dir=_dir):
+    if type == "montage":
+        montage_path = find(path=dir, mode="pattern", pattern="*.bvef")
+        montage = mne.channels.read_custom_montage(fname=montage_path)
+        return montage
+    elif type == "ica":
+        ica_path = find(path=dir, mode="pattern", pattern="*ica.fif")
+        ica_ref = mne.preprocessing.read_ica(ica_path)
+        return ica_ref
+    else:
+        fp = find(path=dir, mode="pattern", pattern=f"*{type}.json")
+        with open(fp) as file:
+            lf = json.load(file)
+        return lf
 
 
 def save_file(file):
@@ -162,11 +139,11 @@ def make_config(config_dir, config_format=".json"):
 
 if __name__ == "__main__":  # workflow
     root_dir = pathlib.Path("D:/EEG")
-    cfg = load_file("config")
+    cfg = load_file(type="config")
     mapping = load_file("mapping")
     montage = load_file("montage")
-    header_files = load_file("header", dir=root_dir)
-    ica_ref = load_file(type="ica", format=".fif")
+    header_files = find(path=dir, mode="pattern", pattern="*.vhdr")
+    ica_ref = load_file(type="ica")
     ids = get_ids(header_files=header_files)
     id = ids[0]
     for id in ids[:1]:
@@ -174,3 +151,4 @@ if __name__ == "__main__":  # workflow
         raw = make_raw(header_files, id, mapping=mapping, montage=montage)
         save_object(raw, root_dir, id)
         preprocessing.run_pipeline()
+    files = find(path=root_dir, mode="pattern", pattern="*.vhdr")
