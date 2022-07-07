@@ -11,7 +11,7 @@ import pathlib
 import os
 
 # TODO: make PCA() executable for evoked objects too.
-# TODO: quality check --> take all the .jpg files for every subject and plot them into one plot.
+# TODO: fix quality_check().
 
 
 def noise_rms(epochs):
@@ -51,17 +51,17 @@ def PCA(epochs, n_components=5):
     return evoked, pca_data
 
 
-def quality_check(ids, fig_size=(60,60)):
-    qc_path = "D:/EEG/vocal_effort/qc"
-    if not os.path.isdir(qc_path):
-        os.makedirs(pathlib.Path(qc_path))
+def quality_check(ids, fig_size=(60,60), out_folder="D:/EEG/vocal_effort/qc"):
+    if not os.path.isdir(out_folder):
+        os.makedirs(pathlib.Path(out_folder))
+    id = ids[0]
     _fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
-    n_plots = len(os.listdir(fig_folder))
+    n_plots = len(os.listdir(_fig_folder))
     for n, subplots in enumerate(range(n_plots)):
         axs_size = int(round(np.sqrt(len(ids)) + 0.5))  # round up
         fig, axs = plt.subplots(axs_size, axs_size, figsize=fig_size)
         axs = axs.flatten()
-        for i, id in enumerate(ids[:10]):
+        for i, id in enumerate(ids):
             _fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
             figures = os.listdir(_fig_folder)
             figure_path = _fig_folder / figures[n]
@@ -69,10 +69,9 @@ def quality_check(ids, fig_size=(60,60)):
             axs[i].imshow(img)
             axs[i].set_axis_off()
             fig.subplots_adjust(wspace=0, hspace=0)
-        plt.savefig(pathlib.Path(qc_path) / figures[n])
+        plt.savefig(pathlib.Path(out_folder) / figures[n])
         plt.close()
 
-n_plots=1
 if __name__ == "__main__":
     root_dir = pathlib.Path("D:/EEG")
     header_files = set.load_file(type="header", dir=root_dir)
