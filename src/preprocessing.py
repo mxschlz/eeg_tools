@@ -25,7 +25,8 @@ ica_ref = stp.load_file(type="ica", dir=root_dir)
 mapping = stp.load_file("mapping", dir=root_dir)
 montage = stp.load_file("montage", dir=root_dir)
 
-def run_pipeline(raw, fig_folder, config=cfg, ica_ref=ica_ref):
+
+def run_pipeline(raw, fig_folder, config=cfg, ica_ref=ica_ref, exclude_events=7):
     global _fig_folder
     _fig_folder = fig_folder
     if config == None:
@@ -35,9 +36,11 @@ def run_pipeline(raw, fig_folder, config=cfg, ica_ref=ica_ref):
         if "filtering" in config:
             raw = filtering(data=raw, **config["filtering"])
         if "epochs" in config:
-            epochs = mne.Epochs(raw, events=mne.events_from_annotations(raw)[0],
+            events = mne.events_from_annotations(raw)[0]
+            events = mne.pick_events(events, exclude=exclude_events)
+            epochs = mne.Epochs(raw, events=events,
                                 **config["epochs"], preload=True)
-            epochs.plot(show=False, show_scalebars=False, show_scrollbars=False, n_channels=65)
+            epochs.plot(show=False, show_scalebars=False, show_scrollbars=False, n_channels=20)
             plt.savefig(_fig_folder / pathlib.Path("epochs.jpg"), dpi=800)
             plt.close()
         if "rereference" in config:
@@ -67,7 +70,7 @@ def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
     if montage:
         raw.set_montage(montage)
     if plot is True and fig_folder is not None:
-        raw.plot(show=False, show_scrollbars=False, show_scalebars=False, start=2000.0, n_channels=65)
+        raw.plot(show=False, show_scrollbars=False, show_scalebars=False, start=2000.0, n_channels=20)
         plt.savefig(_fig_folder / pathlib.Path("raw.jpg"), dpi=800)
         plt.close()
     return raw
@@ -299,9 +302,10 @@ if __name__ == "__main__":  # workflow
     event_id = dict(aud_l=1, aud_r=2, vis_l=3, vis_r=4)
 
     raw = mne.io.read_raw_fif(raw_fname, preload=True)
+    raw = mne.io.read_raw("D:\\EEG\\vocal_effort\\data\\1r3qdv\\raw\\1r3qdv_raw.fif", preload=True)
     raw.filter(1, 20, fir_design='firwin')
     events = mne.read_events(event_fname)
-
+    events = mne.events_from_annotations(raw)
     picks = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
                            exclude='bads')
 
