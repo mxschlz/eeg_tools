@@ -14,14 +14,30 @@ _dir = pathlib.Path(os.getcwd())
 # TODO: make get_ids() more elegant so that reg ex patterns are found more easily.
 # TODO: fix read_object().
 
-def search(dir, format):
-    files = []
-    for root, dirs, files in os.walk(dir):
-        for file in files:
-            if file.endswith(format):
-                files.append(os.path.join(root, file))
-    return files
+def find_name(name, path):
+    for root, dirs, files in os.walk(path):
+        if name in files:
+            return os.path.join(root, name)
 
+def find(name, path, mode="all"):
+    """
+    Mode can be "pattern", "all", or "first."
+    """
+    result = []
+    for root, dirs, files in os.walk(path):
+        if name in files:
+            result.append(os.path.join(root, name))
+    return result
+
+def find_pattern(pattern, path):
+    result = []
+    for root, dirs, files in os.walk(path):
+        for name in files:
+            if fnmatch.fnmatch(name, pattern):
+                result.append(os.path.join(root, name))
+    return result
+
+find('*.txt', '/path/to/dir')
 
 def load_file(type="mapping", dir=_dir, format=_file_format):
     if type == "header":
