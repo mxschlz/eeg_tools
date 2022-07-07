@@ -11,12 +11,13 @@
       "vocal_effort/2": 2,
       "vocal_effort/3": 3,
       "vocal_effort/4": 4,
-      "vocal_effort/5": 5,
+      "vocal_effort/5": 5
     },
     "tmin": -0.2,
     "tmax": 1.0,
     "detrend": null,
-    "baseline": null
+    "baseline": null,
+    "exclude": 7
   },
   "ica": {
     "n_components": 0.999,
