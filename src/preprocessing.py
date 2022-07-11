@@ -36,7 +36,6 @@ def run_pipeline(raw, fig_folder, config=cfg, ica_ref=ica_ref, exclude_events=7)
         if "filtering" in config:
             raw = filtering(data=raw, **config["filtering"])
         if "epochs" in config:
-            events = mne.events_from_annotations(raw)[0]
             events = mne.pick_events(mne.events_from_annotations(raw)[0], exclude=exclude_events)
             epochs = mne.Epochs(raw, events=events,
                                 **config["epochs"], preload=True)
@@ -202,10 +201,11 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
     # reference ICA containing blink and saccade components.
     ref = reference
     # .labels_ dict must contain "blinks" key with int values.
-    components = ref.labels_["blinks"]
-    for component in components:
-        mne.preprocessing.corrmap([ref, ica], template=(0, component),
-                                  label="blinks", plot=False, threshold=cfg["ica"]["threshold"])
+    labels = list(ref.labels_.keys())
+    components = list(ref.labels_.values())
+    for component, label in zip(components, labels):
+        mne.preprocessing.corrmap([ref, ica], template=(0, component[0]),
+                                  label=label, plot=False, threshold=threshold)
         ica.apply(epochs_ica, exclude=ica.labels_["blinks"])  # apply ICA
     ica.plot_components(ica.labels_["blinks"], show=False)
     plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
@@ -278,11 +278,14 @@ def autoreject_epochs(epochs,
     return epochs_ar
 
 
-def make_evokeds(epochs, fig_folder=None, plot=True):
+def make_evokeds(epochs, fig_folder=None, plot=True, baseline=None):
     global _fig_folder
     _fig_folder = fig_folder
-    evokeds = [epochs[condition].average()
-               for condition in epochs.event_id.keys()]
+    if baseline is not None:
+        epochs.apply_baseline(baseline)
+    # evokeds = [epochs[condition].average()
+    #           for condition in epochs.event_id.keys()]
+    evokeds = epochs.average(by_event_type=True)
     if plot is True and fig_folder is not None:
         snr = analysis.snr(epochs)
         avrgd = mne.grand_average(evokeds)
@@ -305,7 +308,7 @@ if __name__ == "__main__":  # workflow
     raw = mne.io.read_raw("D:\\EEG\\vocal_effort\\data\\1r3qdv\\raw\\1r3qdv_raw.fif", preload=True)
     raw.filter(1, 20, fir_design='firwin')
     events = mne.read_events(event_fname)
-    events = mne.events_from_annotations(raw)
+    events = mne.events_from_annotations(raw)[0]
     picks = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
                            exclude='bads')
 
