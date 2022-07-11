@@ -6,13 +6,9 @@ import json
 import mne
 from matplotlib import pyplot as plt
 import fnmatch
-_file_format = ".json"
 _dir = pathlib.Path(os.getcwd())
 
-
-# TODO: implement find() into other functions such as load_file().
 # TODO: make get_ids() more elegant so that reg ex patterns are found more easily.
-# TODO: fix read_object().
 
 
 def find(path, mode="all", pattern=None, name=None):
@@ -106,7 +102,7 @@ def save_object(data, root_dir, id, overwrite=True):
                 print("Data needs to be an mne object of type mne.io.Raw, mne.Epochs or mne.Evoked!")
 
 
-def read_object(data_type, root_dir, id):
+def read_object(data_type, root_dir, id, condition=None):
     for root, dirs, files in os.walk(root_dir):
         if root.endswith(id):
             if data_type == "raw":
@@ -119,7 +115,7 @@ def read_object(data_type, root_dir, id):
                 return epochs
             if data_type == "evokeds":
                 folder_path = pathlib.Path(root) / "evokeds"
-                evokeds = mne.read_epochs(f"{folder_path}\\{id}-ave.fif", preload=True)
+                evokeds = mne.read_evokeds(f"{folder_path}\\{id}-ave.fif", condition=condition)
                 return evokeds
 
 def check_id(id, root_dir):
@@ -128,10 +124,10 @@ def check_id(id, root_dir):
             evokeds_fname = pathlib.Path(root) / "evokeds" / f"{id}-ave.fif"
             if not os.path.exists(evokeds_fname):
                 print(f"Subject has not been processed yet.")
-                # return False
+                return False
             else:
                 print(f"{id} has been processed already.")
-                # return True
+                return True
 
 def make_config(config_dir, config_format=".json"):
     pass
@@ -139,16 +135,16 @@ def make_config(config_dir, config_format=".json"):
 
 if __name__ == "__main__":  # workflow
     root_dir = pathlib.Path("D:/EEG")
-    cfg = load_file(type="config")
+    cfg = load_file(type="config", dir=root_dir)
     mapping = load_file("mapping")
     montage = load_file("montage")
-    header_files = find(path=dir, mode="pattern", pattern="*.vhdr")
+    header_files = find(path=root_dir, mode="pattern", pattern="*.vhdr")
     ica_ref = load_file(type="ica")
     ids = get_ids(header_files=header_files)
     id = ids[0]
-    for id in ids[:1]:
-        make_folders(root_dir=root_dir, id=id)
-        raw = make_raw(header_files, id, mapping=mapping, montage=montage)
-        save_object(raw, root_dir, id)
-        preprocessing.run_pipeline()
-    files = find(path=root_dir, mode="pattern", pattern="*.vhdr")
+    data = read_object("evokeds", root_dir, id, condition=None)
+    mne.viz.plot_compare_evokeds(data)
+    average = mne.grand_average(data)
+    average.plot()
+    for evoked in data:
+        print(evoked.comment)
