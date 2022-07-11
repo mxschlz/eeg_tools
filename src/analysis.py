@@ -10,7 +10,7 @@ import setup_eeg_tools as set
 import pathlib
 import os
 
-# TODO: make PCA() executable for evoked objects too.
+# TODO: fix PCA(): make it executable for evoked objects and return more than the first PC.
 # TODO: fix quality_check().
 
 
@@ -41,14 +41,37 @@ def snr(epochs):
     return snr
 
 
-def PCA(epochs, n_components=5):
+def PCA(epochs, n_components=2):
     X = epochs.get_data()
-    pca = UnsupervisedSpatialFilter(PCA(n_components), average=False)
-    pca_data = pca.fit_transform(X)
-    evoked = mne.EvokedArray(np.mean(pca_data, axis=0),
-                         mne.create_info(n_components, epochs.info['sfreq'],
-                                         ch_types='eeg'), tmin=epochs.tmin)
-    return evoked, pca_data
+    n_epochs, n_channels, n_times = epochs.get_data().shape
+    X -= np.expand_dims(X.mean(axis=2), axis=2)  # center data on 0
+    X = np.transpose(epochs._data,
+                     (1, 0, 2)).reshape(n_channels,
+                                        n_epochs * n_times).T  # concatenate
+    C0 = X.T @ X  # Data covariance Matrix
+    D, P = np.linalg.eig(C0)  # eigendecomposition of C0
+    idx = np.argsort(D)[::-1][0:n_components]   # sort array
+    # by descending magnitude
+    D = D[idx]
+    P = P[:, idx]  # rotation matrix
+    pca_evokeds = dict()
+    for cond in epochs.event_id.keys():
+        # use rotation matrix on every single condition
+        n_epochs, n_channels, n_times = epochs[cond]._data.shape
+        X = epochs[cond]._data
+        X -= np.expand_dims(X.mean(axis=2), axis=2)  # center data on 0
+        X = np.transpose(epochs[cond]._data,
+                         (1, 0, 2)).reshape(n_channels, n_epochs * n_times).T
+        Y = X @ P  # get principle components
+        pca = np.reshape(Y.T, [-1, n_epochs, n_times]).transpose([1, 0, 2])
+        pca_evoked = mne.EvokedArray(np.mean(pca, axis=0),
+                                     mne.create_info(
+                                     n_components, epochs[cond].info["sfreq"],
+                                     ch_types="eeg"),
+                                     tmin=epochs[cond].tmin)
+        # pca_evoked.pick_channels(ch_names=list(str(component)) for component in range(n_components)))
+        pca_evokeds.append(pca_evoked)
+    return pca_evokeds
 
 
 def quality_check(ids, fig_size=(60,60), out_folder="D:/EEG/vocal_effort/qc"):
@@ -72,28 +95,11 @@ def quality_check(ids, fig_size=(60,60), out_folder="D:/EEG/vocal_effort/qc"):
         plt.savefig(pathlib.Path(out_folder) / figures[n])
         plt.close()
 
+
 if __name__ == "__main__":
     root_dir = pathlib.Path("D:/EEG")
-    header_files = set.load_file(type="header", dir=root_dir)
+    header_files = set.find(path=root_dir, mode="pattern", pattern="*.vhdr")
     ids = set.get_ids(header_files)
-    data_path = sample.data_path()
-    # Load and filter data, set up epochs
-    meg_path = data_path / 'MEG' / 'sample'
-    raw_fname = meg_path / 'sample_audvis_filt-0-40_raw.fif'
-    event_fname = meg_path / 'sample_audvis_filt-0-40_raw-eve.fif'
-    tmin, tmax = -0.1, 0.3
-    event_id = dict(aud_l=1, aud_r=2, vis_l=3, vis_r=4)
-
-    raw = mne.io.read_raw_fif(raw_fname, preload=True)
-    raw.filter(1, 20, fir_design='firwin')
-    events = mne.read_events(event_fname)
-
-    picks = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
-                           exclude='bads')
-
-    epochs = mne.Epochs(raw, events, event_id, tmin, tmax, proj=False,
-                        picks=picks, baseline=None, preload=True,
-                        verbose=False)
     X = epochs.get_data()
     n_epochs, n_channels, n_times = epochs.get_data().shape
     X -= np.expand_dims(X.mean(axis=2), axis=2)  # center data on 0
@@ -101,7 +107,7 @@ if __name__ == "__main__":
                      (1, 0, 2)).reshape(n_channels,
                                         n_epochs * n_times).T  # concatenate
     C0 = X.T @ X  # Data covariance Matrix
-    n_components = 5
+    n_components = 2
     D, P = np.linalg.eig(C0)  # eigendecomposition of C0
     idx = np.argsort(D)[::-1][0:n_components]   # sort array
     # by descending magnitude
