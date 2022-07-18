@@ -12,6 +12,7 @@ import os
 
 # TODO: fix PCA(): make it executable for evoked objects and return more than the first PC.
 # TODO: fix quality_check().
+# TODO: make group_evokeds() to prevent writing same code over and over again.
 
 
 def noise_rms(epochs):
@@ -69,8 +70,9 @@ def PCA(epochs, n_components=2):
                                      n_components, epochs[cond].info["sfreq"],
                                      ch_types="eeg"),
                                      tmin=epochs[cond].tmin)
-        # pca_evoked.pick_channels(ch_names=list(str(component)) for component in range(n_components)))
-        pca_evokeds.append(pca_evoked)
+        for component in range(n_components):
+            # pca_evoked.pick_channels(ch_names=list(str(component)) for component in range(n_components)))
+            pca_evokeds.append(pca_evoked.pick_channels(ch_names=list(str(component))))
     return pca_evokeds
 
 
@@ -94,6 +96,9 @@ def quality_check(ids, fig_size=(60,60), out_folder="D:/EEG/vocal_effort/qc"):
             fig.subplots_adjust(wspace=0, hspace=0)
         plt.savefig(pathlib.Path(out_folder) / figures[n])
         plt.close()
+
+def group_evokeds():
+    pass
 
 
 if __name__ == "__main__":
