@@ -9,7 +9,7 @@ import fnmatch
 _dir = pathlib.Path(os.getcwd())
 
 # TODO: make get_ids() more elegant so that reg ex patterns are found more easily.
-
+# TODO: all function need root_dir. Find a way to avoid that.
 
 def find(path, mode="all", pattern=None, name=None):
     """
