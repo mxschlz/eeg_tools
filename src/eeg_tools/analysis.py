@@ -5,7 +5,7 @@ from mne.datasets import sample
 from mne.decoding import UnsupervisedSpatialFilter
 from sklearn.decomposition import PCA
 import sys
-sys.path.append("D:/Projects/eeg_tools/src/")
+sys.path.append("D:/Projects/eeg_tools/src/eeg_tools")
 import setup_eeg_tools as set
 import pathlib
 import os
