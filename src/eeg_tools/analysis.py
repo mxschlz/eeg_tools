@@ -12,7 +12,6 @@ import os
 
 # TODO: fix PCA(): make it executable for evoked objects and return more than the first PC.
 # TODO: fix quality_check().
-# TODO: make group_evokeds() to prevent writing same code over and over again.
 
 
 def noise_rms(epochs):
@@ -98,7 +97,7 @@ def quality_check(ids, fig_size=(60,60), out_folder="D:/EEG/vocal_effort/qc"):
         plt.close()
 
 
-def sort_evokeds(ids, root_dir, average=True):
+def get_evokeds(ids, root_dir, return_average=True):
     all_evokeds = dict()
     for id in ids:
         evokeds = set.read_object("evokeds", root_dir, id)
@@ -107,7 +106,7 @@ def sort_evokeds(ids, root_dir, average=True):
                 all_evokeds[condition.comment] = [condition]
             else:
                 all_evokeds[condition.comment].append(condition)
-    if average == True:
+    if return_average == True:
         evokeds_avrgd = dict()
         for key in all_evokeds:
             evokeds_avrgd[key] = mne.grand_average(all_evokeds[key])

@@ -118,6 +118,7 @@ def read_object(data_type, root_dir, id, condition=None):
                 evokeds = mne.read_evokeds(f"{folder_path}\\{id}-ave.fif", condition=condition)
                 return evokeds
 
+
 def check_id(id, root_dir):
     for root, dirs, files in os.walk(root_dir):
         if root.endswith(id):
