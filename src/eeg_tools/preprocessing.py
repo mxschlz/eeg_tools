@@ -41,7 +41,8 @@ def run_pipeline(raw, fig_folder, config, ica_ref, exclude=None):
         epochs (mne.Epochs): preprocessed epoched EEG data.
     """
 
-    global fig_folder
+    global _fig_folder
+    fig_folder = _fig_folder
     if config == None:
         raise FileNotFoundError(
             "Need config file to preprocess data according to parameters!")
@@ -55,7 +56,7 @@ def run_pipeline(raw, fig_folder, config, ica_ref, exclude=None):
                                 **config["epochs"], preload=True)
             epochs.plot(show=False, show_scalebars=False,
                         show_scrollbars=False, n_channels=20)
-            plt.savefig(fig_folder / pathlib.Path("epochs.jpg"), dpi=800)
+            plt.savefig(_fig_folder / pathlib.Path("epochs.jpg"), dpi=800)
             plt.close()
         if "rereference" in config:
             epochs = reref(epochs=epochs, **config["rereference"])
@@ -104,7 +105,7 @@ def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
     if plot is True and fig_folder is not None:
         raw.plot(show=False, show_scrollbars=False,
                  show_scalebars=False, start=2000.0, n_channels=20)
-        plt.savefig(fig_folder / pathlib.Path("raw.jpg"), dpi=800)
+        plt.savefig(_fig_folder / pathlib.Path("raw.jpg"), dpi=800)
         plt.close()
     return raw
 
@@ -185,7 +186,7 @@ def reref(epochs, ransac_parameters=None, type="average", elecs=None, plot=True)
                          If None, see elecs argument.
         elecs (str/list of str/None): If type == None, enter reference name as string.
                                       If reference should consist of more than one electrode, insert list of strings.
-        plot (bool): if True, save a figure of the data before and after rereferencing.
+        plot (bool): if True, saves a figure of the data before and after rereferencing.
 
     Returns:
         epochs: rereferenced epochs.
@@ -295,16 +296,16 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
                                   label=label, plot=False, threshold=threshold)
         ica.apply(epochs_ica, exclude=ica.labels_["blinks"])  # apply ICA
     ica.plot_components(ica.labels_["blinks"], show=False)
-    plt.savefig(fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
+    plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
     plt.close()
     ica.plot_sources(inst=epochs, show=False, start=0,
                      stop=10, show_scrollbars=False)
-    plt.savefig(fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
+    plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
     plt.close()
     snr_post_ica = analysis.snr(epochs_ica)
     ica.plot_overlay(epochs.average(), exclude=ica.labels_["blinks"],
                      show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
-    plt.savefig(fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
+    plt.savefig(_fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
     plt.close()
     return epochs_ica
 
@@ -363,11 +364,11 @@ def autoreject_epochs(epochs,
     epochs_ar.average().plot(axes=plt.gca(), show=False,
                              titles=f"SNR: {snr_ar:.2f}")
     plt.savefig(
-        fig_folder / pathlib.Path("autoreject_results.jpg"), dpi=800)
+        _fig_folder / pathlib.Path("autoreject_results.jpg"), dpi=800)
     plt.close()
     epochs_ar.plot_drop_log(show=False)
     plt.savefig(
-        fig_folder / pathlib.Path("epochs_drop_log.jpg"), dpi=800)
+        _fig_folder / pathlib.Path("epochs_drop_log.jpg"), dpi=800)
     plt.close()
     return epochs_ar
 
@@ -394,6 +395,6 @@ def make_evokeds(epochs, plot=True, baseline=None):
         snr = analysis.snr(epochs)
         avrgd = mne.grand_average(evokeds)
         avrgd.plot_joint(show=False, title=f"SNR: {snr:.2f}")
-        plt.savefig(fig_folder / pathlib.Path("evokeds.jpg", dpi=800))
+        plt.savefig(_fig_folder / pathlib.Path("evokeds.jpg", dpi=800))
         plt.close()
     return evokeds
