@@ -3,6 +3,8 @@ sys.path.append("D:/Projects/eeg_tools/src/eeg_tools")
 import pathlib
 import setup_eeg_tools as set
 
+# TODO: change root_dir so that it is universally suited.
+
 # default prerequisites:
 root_dir = pathlib.Path("D:/EEG/vocal_effort")
 cfg = set.load_file("config", dir=root_dir)
