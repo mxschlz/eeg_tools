@@ -1,34 +1,47 @@
-import sys
-sys.path.append("D:/Projects/eeg_tools/src/")
-import glob
-import json
-from mne.preprocessing import ICA
-from autoreject import AutoReject, Ransac
-from matplotlib import pyplot as plt, patches
-import mne
-import numpy as np
-import pathlib
-import os
-import setup_eeg_tools as stp
-import analysis
+import settings
 from mne.datasets import sample
-
+import analysis
+import setup_eeg_tools as set
+import os
+import pathlib
+import numpy as np
+import mne
+from matplotlib import pyplot as plt, patches
+from autoreject import AutoReject, Ransac
+from mne.preprocessing import ICA
+import json
+import glob
+import sys
+sys.path.append("D:/Projects/eeg_tools/src/eeg_tools")
 
 # TODO: describe workflow of processing data.
-# TODO: change root_dir so that it is applicable for every PC.
 # TODO: go through all the functions and make them more elegant.
 
-# default prerequisites:
-root_dir = pathlib.Path("D:/EEG")
-cfg = stp.load_file("config", dir=root_dir)
-ica_ref = stp.load_file(type="ica", dir=root_dir)
-mapping = stp.load_file("mapping", dir=root_dir)
-montage = stp.load_file("montage", dir=root_dir)
 
+def run_pipeline(raw, fig_folder, config, ica_ref, exclude=None):
+    """
+    Automated preprocessing pipeline for raw EEG data.
 
-def run_pipeline(raw, fig_folder, config=cfg, ica_ref=ica_ref, exclude_events=7):
-    global _fig_folder
-    _fig_folder = fig_folder
+    The pipeline takes an mne.io.Raw instance and preprocesses it according to
+    the config parameters. Currently available preprocessing options are:
+    filtering (highpass, lowpass, bandpass, notch);
+    epoching;
+    rereferencing (robust average, REST, single or linked reference);
+    ocular artifact rejection (independent component analysis);
+    automated threshold rejection (AutoReject).
+
+    Args:
+        raw (mne.io.Raw): raw instance containing continuous time series EEG data.
+        fig_folder (string): folder path in which preprocessing steps are documented.
+        config (dict): JSON file containing preprocessing parameters.
+        ica_ref (mne.preprocessing.ica.ICA): ica reference template for artifact rejection via correlation mapping.
+        exclude (int): exclude events by stimulus annotation. Defaults to None.
+
+    Returns:
+        epochs (mne.Epochs): preprocessed epoched EEG data.
+    """
+
+    global fig_folder
     if config == None:
         raise FileNotFoundError(
             "Need config file to preprocess data according to parameters!")
@@ -36,11 +49,13 @@ def run_pipeline(raw, fig_folder, config=cfg, ica_ref=ica_ref, exclude_events=7)
         if "filtering" in config:
             raw = filtering(data=raw, **config["filtering"])
         if "epochs" in config:
-            events = mne.pick_events(mne.events_from_annotations(raw)[0], exclude=exclude_events)
+            events = mne.pick_events(
+                mne.events_from_annotations(raw)[0], exclude=exclude)
             epochs = mne.Epochs(raw, events=events,
                                 **config["epochs"], preload=True)
-            epochs.plot(show=False, show_scalebars=False, show_scrollbars=False, n_channels=20)
-            plt.savefig(_fig_folder / pathlib.Path("epochs.jpg"), dpi=800)
+            epochs.plot(show=False, show_scalebars=False,
+                        show_scrollbars=False, n_channels=20)
+            plt.savefig(fig_folder / pathlib.Path("epochs.jpg"), dpi=800)
             plt.close()
         if "rereference" in config:
             epochs = reref(epochs=epochs, **config["rereference"])
@@ -53,9 +68,27 @@ def run_pipeline(raw, fig_folder, config=cfg, ica_ref=ica_ref, exclude_events=7)
 
 
 def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
-             mapping=mapping, montage=montage, fig_folder=None, plot=True):
-    global _fig_folder
-    _fig_folder = fig_folder
+             mapping=settings.mapping, montage=settings.montage, plot=True):
+    """
+    Merges EEG files into an mne.io.Raw instance.
+
+    Takes the BrainVision header files (format: .vhdr) and merges them subject-wise.
+    Applies information about electrode positions and renames them according to the 10-20 system.
+    Optionally adds a reference channel to the data which has zero voltage.
+
+    Args:
+        header_files (list of strings): header files of one subject (format: .vhdr).
+        id (str): subject id.
+        ref_ch (str): reference channel to be added.
+        preload (bool): preload the data. Defaults to True.
+        add_ref_ch (bool): add the reference channel. Defaults to True.
+        mapping (dict): JSON file containing the electrode names.
+        monateg (dict): JSON file containing information about sensor coordinates.
+
+    Returns:
+        raw (mne.io.Raw): continuous time series data which makes up the starting point for the preprocessing pipeline.
+    """
+
     raw_files = []
     for header_file in header_files:
         if id in header_file:
@@ -69,25 +102,39 @@ def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
     if montage:
         raw.set_montage(montage)
     if plot is True and fig_folder is not None:
-        raw.plot(show=False, show_scrollbars=False, show_scalebars=False, start=2000.0, n_channels=20)
-        plt.savefig(_fig_folder / pathlib.Path("raw.jpg"), dpi=800)
+        raw.plot(show=False, show_scrollbars=False,
+                 show_scalebars=False, start=2000.0, n_channels=20)
+        plt.savefig(fig_folder / pathlib.Path("raw.jpg"), dpi=800)
         plt.close()
     return raw
 
 
 def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
     """
-    Apply FIR filter to the raw dataset. Make a 2 by 2 plot with time
-    series data and power spectral density before and after.
+    Applies FIR (finite impulse response) filter to the data.
+
+    Filter can be either highpass, lowpass, bandpass or a notch filter.
+    Optionally, save the data plots before and after filtering.
+
+    Args:
+        data (mne.io.Raw, mne.Epochs, mne.Evoked): data to be filtered. Usually,
+        continuous time series data is preferred to avoid disturbances by the filter design.
+        notch (int): frequency to be filtered. Example: 50 to filter out power line noise.
+        highpass (int / float): applies a highpass filter at given frequency.
+        lowpass (int / float): applies a lowpass filter at given frequency.
+        plot (bool): if True, saves the data as a plot before and after filtering.
+
+    Returns:
+        data: filtered mne instance.
     """
+
     fig, ax = plt.subplots(2, sharex=True, sharey=True)
     fig.suptitle("Power Spectral Density")
-    ax[0].set_title("before filtering")
-    ax[1].set_title("after filtering")
+    ax[0].set_title("Before filtering")
+    ax[1].set_title("After filtering")
     ax[1].set(xlabel="Frequency (Hz)", ylabel="μV²/Hz (dB)")
     ax[0].set(xlabel="Frequency (Hz)", ylabel="μV²/Hz (dB)")
     if plot == True:
-        # FCz has zero voltage at this point.
         data.plot_psd(ax=ax[0], show=False, exclude=["FCz"])
     if notch is not None:  # ZapLine Notch filter
         X = data.get_data().T
@@ -105,34 +152,52 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
         data.plot_psd(ax=ax[1], show=False, exclude=["FCz"])
     if lowpass is not None and highpass == None:
         fig.savefig(
-            _fig_folder / pathlib.Path("lowpassfilter.jpg"), dpi=800)
+            fig_folder / pathlib.Path("lowpassfilter.jpg"), dpi=800)
     if highpass is not None and lowpass == None:
         fig.savefig(
-            _fig_folder / pathlib.Path("highpassfilter.jpg"), dpi=800)
+            fig_folder / pathlib.Path("highpassfilter.jpg"), dpi=800)
     if highpass and lowpass is not None:
         fig.savefig(
-            _fig_folder / pathlib.Path("bandpassfilter.jpg"), dpi=800)
+            fig_folder / pathlib.Path("bandpassfilter.jpg"), dpi=800)
     if notch is not None:
         fig.savefig(
-            _fig_folder / pathlib.Path("ZapLine_filter.jpg"), dpi=800)
+            fig_folder / pathlib.Path("ZapLine_filter.jpg"), dpi=800)
     plt.close()
     return data
 
 
-def reref(epochs, ransac_parameters, type="average", plot=True):
+def reref(epochs, ransac_parameters=None, type="average", elecs=None, plot=True):
     """
-    If type "average": Create a robust average reference by first interpolating the bad channels
-    to exclude outliers. Take mean voltage over all inlier channels as reference.
-    If type "rest": use reference electrode standardization technique (point at infinity).
-    epochs: mne.Epoch object.
-    type: string --> "average", "rest", "lm" (linked mastoids)
+    Rereferences the data.
+
+    Applies a reference to the data according to the desired type.
+    Reference options are:
+    robust average over all electrodes, exclude outlier sensors beforehand (RANSAC),
+    Reference Electrode Standardization Technique (REST),
+    linked mastoids (TP9, TP10),
+    or any other desired sensor.
+
+    Args:
+        epochs (mne.Epochs): mne.Epochs instance to be rereferenced.
+        ransac_parameters (dict / None): parameters for the RANSAC algorithm. (https://autoreject.github.io/stable/generated/autoreject.Ransac.html#autoreject.Ransac)
+                                         If None, use default parameters.
+        type (str/None): reference type. Can be "average", "lm", "rest" or None.
+                         If None, see elecs argument.
+        elecs (str/list of str/None): If type == None, enter reference name as string.
+                                      If reference should consist of more than one electrode, insert list of strings.
+        plot (bool): if True, save a figure of the data before and after rereferencing.
+
+    Returns:
+        epochs: rereferenced epochs.
     """
+
     if type == "average":
         epochs_clean = epochs.copy()
         ransac = Ransac(**ransac_parameters)  # optimize speed
         ransac.fit(epochs_clean)
         epochs_clean.average().plot(exclude=[])
-        bads = input("Visual inspection for bad sensors: ").split()
+        bads = input(
+            "Enter bad sensors here (separate several bad sensors via spacebar): ").split()
         if len(bads) != 0 and bads not in ransac.bad_chs_:
             ransac.bad_chs_.extend(bads)
         epochs_clean = ransac.transform(epochs_clean)
@@ -140,15 +205,16 @@ def reref(epochs, ransac_parameters, type="average", plot=True):
         evoked_clean = epochs_clean.average()
         evoked.info['bads'] = ransac.bad_chs_
         evoked_clean.info['bads'] = ransac.bad_chs_
-        fig, ax = plt.subplots(2)
-        evoked.plot(exclude=[], axes=ax[0], show=False)
-        evoked_clean.plot(exclude=[], axes=ax[1], show=False)
-        ax[0].set_title(f"Before RANSAC (bad chs:{ransac.bad_chs_})")
-        ax[1].set_title("After RANSAC")
-        fig.tight_layout()
-        fig.savefig(
-            _fig_folder / pathlib.Path("RANSAC_results.jpg"), dpi=800)
-        plt.close()
+        if plot:
+            fig, ax = plt.subplots(2)
+            evoked.plot(exclude=[], axes=ax[0], show=False)
+            evoked_clean.plot(exclude=[], axes=ax[1], show=False)
+            ax[0].set_title(f"Before RANSAC (bad chs:{ransac.bad_chs_})")
+            ax[1].set_title("After RANSAC")
+            fig.tight_layout()
+            fig.savefig(
+                fig_folder / pathlib.Path("RANSAC_results.jpg"), dpi=800)
+            plt.close()
         epochs = epochs_clean.copy()
         epochs_clean.set_eeg_reference(ref_channels="average", projection=True)
         average_reference = epochs_clean.info["projs"]
@@ -170,26 +236,47 @@ def reref(epochs, ransac_parameters, type="average", plot=True):
         epochs_reref = epochs.copy().set_eeg_reference(["TP9", "TP10"])
         snr_pre = analysis.snr(epochs)
         snr_post = analysis.snr(epochs_reref)
+    else:
+        epochs_reref = epochs.copy().set_eeg_reference(elecs)
     if plot == True:
         fig, ax = plt.subplots(2)
         epochs.average().plot(axes=ax[0], show=False)
         epochs_reref.average().plot(axes=ax[1], show=False)
         ax[0].set_title(f"FCz, SNR={snr_pre:.2f}")
-        ax[1].set_title(f"{type}, SNR={snr_post:.2f}")
-        fig.tight_layout()
-        fig.savefig(
-            _fig_folder / pathlib.Path(f"{type}_reference.jpg"), dpi=800)
-        plt.close()
+        if type is not None:
+            ax[1].set_title(f"{type}, SNR={snr_post:.2f}")
+            fig.tight_layout()
+            fig.savefig(
+                fig_folder / pathlib.Path(f"{type}_reference.jpg"), dpi=800)
+            plt.close()
+        if type is None:
+            ax[1].set_title(f"{elecs}, SNR={snr_post:.2f}")
+            fig.tight_layout()
+            fig.savefig(
+                fig_folder / pathlib.Path(f"{elecs}_reference.jpg"), dpi=800)
+            plt.close()
     return epochs_reref
 
 
 def apply_ICA(epochs, reference, n_components=None, method="fastica",
               threshold="auto"):
     """
-    Run independent component analysis. Fit all epochs to the mne.ICA class, use
-    reference_ica.fif to show the algorithm how blinks and saccades look like.
-    Apply ica and save components to keep track of the excluded component topography.
+    Applies independent component analysis to the data.
+
+    Uses a reference template and computes a correlation map for ocular artifact rejection.
+
+
+    Args:
+        epochs (mne.Epochs):
+
+    Returns:
+        type: description
+
+    Raises:
+        Exception: description
+
     """
+
     epochs_ica = epochs.copy()
     snr_pre_ica = analysis.snr(epochs_ica)
     # ar = AutoReject(n_interpolate=n_interpolate, n_jobs=n_jobs)
@@ -208,16 +295,16 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
                                   label=label, plot=False, threshold=threshold)
         ica.apply(epochs_ica, exclude=ica.labels_["blinks"])  # apply ICA
     ica.plot_components(ica.labels_["blinks"], show=False)
-    plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
+    plt.savefig(fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
     plt.close()
     ica.plot_sources(inst=epochs, show=False, start=0,
                      stop=10, show_scrollbars=False)
-    plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
+    plt.savefig(fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
     plt.close()
     snr_post_ica = analysis.snr(epochs_ica)
     ica.plot_overlay(epochs.average(), exclude=ica.labels_["blinks"],
                      show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
-    plt.savefig(_fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
+    plt.savefig(fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
     plt.close()
     return epochs_ica
 
@@ -230,10 +317,17 @@ def autoreject_epochs(epochs,
                       n_jobs=-1,
                       random_state=None):
     """
-    Automatically reject epochs via AutoReject algorithm:
-    Computation of sensor-wise peak-to-peak-amplitude thresholds
-    via cross-validation.
+    A short description.
+
+    A bit longer description.
+
+    Args:
+        variable (type): description
+
+    Returns:
+        type: description
     """
+
     ar = AutoReject(n_interpolate=n_interpolate, n_jobs=n_jobs)
     ar.fit(epochs)
     epochs_ar, reject_log = ar.transform(epochs, return_log=True)
@@ -261,7 +355,7 @@ def autoreject_epochs(epochs,
               title="Mean cross validation error (x 1e6)")
     fig.colorbar(im)
     fig.tight_layout()
-    fig.savefig(_fig_folder / pathlib.Path("autoreject_best_fit.jpg"), dpi=800)
+    fig.savefig(fig_folder / pathlib.Path("autoreject_best_fit.jpg"), dpi=800)
     plt.close()
     evoked_bad = epochs[reject_log.bad_epochs].average()
     snr_ar = analysis.snr(epochs_ar)
@@ -269,18 +363,28 @@ def autoreject_epochs(epochs,
     epochs_ar.average().plot(axes=plt.gca(), show=False,
                              titles=f"SNR: {snr_ar:.2f}")
     plt.savefig(
-        _fig_folder / pathlib.Path("autoreject_results.jpg"), dpi=800)
+        fig_folder / pathlib.Path("autoreject_results.jpg"), dpi=800)
     plt.close()
     epochs_ar.plot_drop_log(show=False)
     plt.savefig(
-        _fig_folder / pathlib.Path("epochs_drop_log.jpg"), dpi=800)
+        fig_folder / pathlib.Path("epochs_drop_log.jpg"), dpi=800)
     plt.close()
     return epochs_ar
 
 
-def make_evokeds(epochs, fig_folder=None, plot=True, baseline=None):
-    global _fig_folder
-    _fig_folder = fig_folder
+def make_evokeds(epochs, plot=True, baseline=None):
+    """
+    A short description.
+
+    A bit longer description.
+
+    Args:
+        variable (type): description
+
+    Returns:
+        type: description
+    """
+
     if baseline is not None:
         epochs.apply_baseline(baseline)
     # evokeds = [epochs[condition].average()
@@ -290,55 +394,6 @@ def make_evokeds(epochs, fig_folder=None, plot=True, baseline=None):
         snr = analysis.snr(epochs)
         avrgd = mne.grand_average(evokeds)
         avrgd.plot_joint(show=False, title=f"SNR: {snr:.2f}")
-        plt.savefig(_fig_folder / pathlib.Path("evokeds.jpg", dpi=800))
+        plt.savefig(fig_folder / pathlib.Path("evokeds.jpg", dpi=800))
         plt.close()
     return evokeds
-
-
-if __name__ == "__main__":  # workflow
-    data_path = sample.data_path()
-    # Load and filter data, set up epochs
-    meg_path = data_path / 'MEG' / 'sample'
-    raw_fname = meg_path / 'sample_audvis_filt-0-40_raw.fif'
-    event_fname = meg_path / 'sample_audvis_filt-0-40_raw-eve.fif'
-    tmin, tmax = -0.1, 0.3
-    event_id = dict(aud_l=1, aud_r=2, vis_l=3, vis_r=4)
-
-    raw = mne.io.read_raw_fif(raw_fname, preload=True)
-    raw = mne.io.read_raw("D:\\EEG\\vocal_effort\\data\\1r3qdv\\raw\\1r3qdv_raw.fif", preload=True)
-    raw.filter(1, 20, fir_design='firwin')
-    events = mne.read_events(event_fname)
-    events = mne.events_from_annotations(raw)[0]
-    picks = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False,
-                           exclude='bads')
-
-    epochs = mne.Epochs(raw, events, event_id, tmin, tmax, proj=False,
-                        picks=picks, baseline=None, preload=True,
-                        verbose=False)
-    evokeds = epochs.average(by_event_type=True)
-    evokeds = mne.grand_average()
-    evokeds = ignore_conds(evokeds, "button_press")
-    root_dir = pathlib.Path("D:/EEG")
-    cfg = stp.load_file("config", dir=root_dir)
-    mapping = stp.load_file("mapping", dir=root_dir)
-    montage = stp.load_file("montage", dir=root_dir)
-    header_files = stp.load_file("header", dir=root_dir)
-    ica_ref = stp.load_file(type="ica", dir=root_dir, format=".fif")
-    # r"" == raw string
-    # \b matches on a change from a \w (a word character) to a \W (non word character)
-    # \w{6} == six alphanumerical characters
-    # RegEx expression to match subject ids (6 alphanumerical characters)
-    re_pattern = r'\b\w{6}\b'
-    ids = stp.get_ids(header_files=header_files, pattern=re_pattern)
-    for id in ids[:1]:
-        stp.make_folders(root_dir=root_dir, id=id)
-        _fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
-        raw = make_raw(header_files, id, mapping=mapping, montage=montage)
-        stp.save_object(raw, root_dir, id)
-        epochs = run_pipeline(
-            raw, config=cfg, ica_ref=ica_ref, fig_folder=_fig_folder)
-        del raw  # save working memory
-        stp.save_object(epochs, root_dir, id)
-        evokeds = make_evokeds(epochs)
-        stp.save_object(evokeds, root_dir, id)
-        del epochs, evokeds  # save working memory
