@@ -7,7 +7,9 @@ import setup_eeg_tools as set
 
 # default prerequisites:
 root_dir = pathlib.Path("D:/EEG/vocal_effort")
-cfg = set.load_file("config", dir=root_dir)
-ica_ref = set.load_file(type="ica", dir=root_dir)
-mapping = set.load_file("mapping", dir=root_dir)
-montage = set.load_file("montage", dir=root_dir)
+cfg = set.load_file(root_dir, "config")
+ica_ref = set.load_file(root_dir, type="ica")
+mapping = set.load_file(root_dir, "mapping")
+montage = set.load_file(root_dir, "montage")
+header_files = set.find(path=root_dir, mode="pattern", pattern="*.vhdr")
+ids = set.get_ids(header_files=header_files, pattern=r'\b\w{6}\b')
