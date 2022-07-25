@@ -6,7 +6,6 @@ import json
 import mne
 from matplotlib import pyplot as plt
 import fnmatch
-_dir = pathlib.Path(os.getcwd())
 
 # TODO: make get_ids() more elegant so that reg ex patterns are found more easily.
 # TODO: all function need root_dir. Find a way to avoid that.
@@ -32,7 +31,7 @@ def find(path, mode="all", pattern=None, name=None):
         return result
 
 
-def load_file(type="mapping", dir=_dir):
+def load_file(dir, type="mapping"):
     if type == "montage":
         montage_path = find(path=dir, mode="pattern", pattern="*.bvef")
         montage = mne.channels.read_custom_montage(fname=montage_path)
