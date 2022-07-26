@@ -54,10 +54,10 @@ def save_file(file):
 # \b matches on a change from a \w (a word character) to a \W (non word character)
 # \w{6} == six alphanumerical characters
 # RegEx expression to match subject ids (6 alphanumerical characters)
-def get_ids(header_files, pattern=r'\b\w{6}\b'):
+def get_ids(header_files, regexp=r'\b\w{6}\b'):
     ids = []
     for header_file in header_files:
-        match = re.search(pattern=pattern, string=header_file)
+        match = re.search(pattern=regexp, string=header_file)
         if match.group() not in ids:
             ids.append(match.group())
     return ids
