@@ -10,7 +10,7 @@ import fnmatch
 # TODO: make get_ids() more elegant so that reg ex patterns are found more easily.
 # TODO: all function need root_dir. Find a way to avoid that.
 
-def find(path, mode="all", pattern=None, name=None):
+def find(path, mode="pattern", pattern=None, name=None):
     """
     Mode can be "pattern" or "name".
     """
@@ -31,7 +31,7 @@ def find(path, mode="all", pattern=None, name=None):
         return result
 
 
-def load_file(dir, type="mapping"):
+def load_file(dir, type="mapping", format="json"):
     if type == "montage":
         montage_path = find(path=dir, mode="pattern", pattern="*.bvef")
         montage = mne.channels.read_custom_montage(fname=montage_path)
@@ -41,13 +41,16 @@ def load_file(dir, type="mapping"):
         ica_ref = mne.preprocessing.read_ica(ica_path)
         return ica_ref
     else:
-        fp = find(path=dir, mode="pattern", pattern=f"*{type}.json")
+        fp = find(path=dir, mode="pattern", pattern=f"*{type}.{format}")
         with open(fp) as file:
             lf = json.load(file)
         return lf
 
-
-def save_file(file):
+# WIP
+def save_config(config, id, header_files):
+    for file in header_files:
+        if id in file:
+            file.replace()
     pass
 
 # r"" == raw string
