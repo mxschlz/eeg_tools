@@ -3,13 +3,49 @@ sys.path.append("D:/Projects/eeg_tools/src/eeg_tools")
 import pathlib
 import setup_eeg_tools as set
 
-# TODO: change root_dir so that it is universally suited.
+# TODO: change regexp to make it user friendly.
+"""
+This module contains necessary variables for running the preprocessing pipeline \n
+on EEG data.
+Callable variables are:
+cfg = configuration file (dictionary) containing necessary preprocessing parameters.
+ica_ref = ICA reference template.
+mapping = electrode mapping according to 10-20 system.
+montage = file containing the electrode coordinates on the scalp.
+header_files = list containing all paths to the .vhdr files in the given directory.
+ids = list of subject ids extracted from header files.
+"""
+
 
 # default prerequisites:
-root_dir = pathlib.Path("D:/EEG/vocal_effort")
-cfg = set.load_file(root_dir, "config")
-ica_ref = set.load_file(root_dir, type="ica")
-mapping = set.load_file(root_dir, "mapping")
-montage = set.load_file(root_dir, "montage")
-header_files = set.find(path=root_dir, mode="pattern", pattern="*.vhdr")
-ids = set.get_ids(header_files=header_files, pattern=r'\b\w{6}\b')
+root_dir = pathlib.Path(input("Enter path to EEG data here: "))
+try:
+    cfg = set.load_file(root_dir, "config")
+except:
+    print("Config file not found. Be sure that EEG data and config file can be found in the entered path.")
+try:
+    ica_ref = set.load_file(root_dir, "ica")
+except:
+    print("ICA template not found. Be sure that EEG data and template file are stored the entered path.")
+try:
+    mapping = set.load_file(root_dir, "mapping")
+except:
+    print("Electrode mapping not found. Be sure that EEG data and mapping file are stored the entered path.")
+try:
+    montage = set.load_file(root_dir, "montage")
+except:
+    print("Electrode montage not found. Be sure that EEG data and montage file are stored the entered path.")
+try:
+    header_files = set.find(path=root_dir, mode="pattern", pattern="*.vhdr")
+except:
+    print("VHDR files not found. Be sure that EEG data are stored the entered path.")
+try:
+    regexp = r'\b\w{6}\b'
+    ids = set.get_ids(header_files=header_files, regexp=regexp)
+except:
+    print("IDs could not be extracted. RegEx might be syntactically wrong.")
+
+# WIP
+def update(id):
+    fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
+    return fig_folder
