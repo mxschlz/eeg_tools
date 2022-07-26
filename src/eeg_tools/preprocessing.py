@@ -18,7 +18,7 @@ sys.path.append("D:/Projects/eeg_tools/src/eeg_tools")
 # TODO: go through all the functions and make them more elegant.
 
 
-def run_pipeline(raw, fig_folder, config, ica_ref, exclude=None):
+def run_pipeline(raw, fig_folder, config, ica_ref):
     """
     Automated preprocessing pipeline for raw EEG data.
 
@@ -51,7 +51,7 @@ def run_pipeline(raw, fig_folder, config, ica_ref, exclude=None):
             raw = filtering(data=raw, **config["filtering"])
         if "epochs" in config:
             events = mne.pick_events(
-                mne.events_from_annotations(raw)[0], exclude=exclude)
+                mne.events_from_annotations(raw)[0], **config["epochs"]["exclude"])
             epochs = mne.Epochs(raw, events=events,
                                 **config["epochs"], preload=True)
             epochs.plot(show=False, show_scalebars=False,
