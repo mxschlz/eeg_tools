@@ -42,7 +42,7 @@ def run_pipeline(raw, fig_folder, config, ica_ref):
     """
 
     global _fig_folder
-    fig_folder = _fig_folder
+    _fig_folder = fig_folder
     if config == None:
         raise FileNotFoundError(
             "Need config file to preprocess data according to parameters!")
@@ -51,7 +51,7 @@ def run_pipeline(raw, fig_folder, config, ica_ref):
             raw = filtering(data=raw, **config["filtering"])
         if "epochs" in config:
             events = mne.pick_events(
-                mne.events_from_annotations(raw)[0], **config["epochs"]["exclude"])
+                mne.events_from_annotations(raw)[0], exclude=**config["epochs"]["exclude"])
             epochs = mne.Epochs(raw, events=events,
                                 **config["epochs"], preload=True)
             epochs.plot(show=False, show_scalebars=False,
@@ -68,7 +68,7 @@ def run_pipeline(raw, fig_folder, config, ica_ref):
     return epochs
 
 
-def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
+def make_raw(header_files, id, fig_folder, ref_ch="FCz", preload=True, add_ref_ch=True,
              mapping=settings.mapping, montage=settings.montage, plot=True):
     """
     Merges EEG files into an mne.io.Raw instance.
@@ -90,6 +90,8 @@ def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
         raw (mne.io.Raw): continuous time series data which makes up the starting point for the preprocessing pipeline.
     """
 
+    global _fig_folder
+    _fig_folder = fig_folder
     raw_files = []
     for header_file in header_files:
         if id in header_file:
@@ -102,7 +104,7 @@ def make_raw(header_files, id, ref_ch="FCz", preload=True, add_ref_ch=True,
         raw.add_reference_channels(ref_ch)
     if montage:
         raw.set_montage(montage)
-    if plot is True and fig_folder is not None:
+    if plot is True:
         raw.plot(show=False, show_scrollbars=False,
                  show_scalebars=False, start=2000.0, n_channels=20)
         plt.savefig(_fig_folder / pathlib.Path("raw.jpg"), dpi=800)
@@ -153,16 +155,16 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
         data.plot_psd(ax=ax[1], show=False, exclude=["FCz"])
     if lowpass is not None and highpass == None:
         fig.savefig(
-            fig_folder / pathlib.Path("lowpassfilter.jpg"), dpi=800)
+            _fig_folder / pathlib.Path("lowpassfilter.jpg"), dpi=800)
     if highpass is not None and lowpass == None:
         fig.savefig(
-            fig_folder / pathlib.Path("highpassfilter.jpg"), dpi=800)
+            _fig_folder / pathlib.Path("highpassfilter.jpg"), dpi=800)
     if highpass and lowpass is not None:
         fig.savefig(
-            fig_folder / pathlib.Path("bandpassfilter.jpg"), dpi=800)
+            _fig_folder / pathlib.Path("bandpassfilter.jpg"), dpi=800)
     if notch is not None:
         fig.savefig(
-            fig_folder / pathlib.Path("ZapLine_filter.jpg"), dpi=800)
+            _fig_folder / pathlib.Path("ZapLine_filter.jpg"), dpi=800)
     plt.close()
     return data
 
@@ -214,7 +216,7 @@ def reref(epochs, ransac_parameters=None, type="average", elecs=None, plot=True)
             ax[1].set_title("After RANSAC")
             fig.tight_layout()
             fig.savefig(
-                fig_folder / pathlib.Path("RANSAC_results.jpg"), dpi=800)
+                _fig_folder / pathlib.Path("RANSAC_results.jpg"), dpi=800)
             plt.close()
         epochs = epochs_clean.copy()
         epochs_clean.set_eeg_reference(ref_channels="average", projection=True)
@@ -248,13 +250,13 @@ def reref(epochs, ransac_parameters=None, type="average", elecs=None, plot=True)
             ax[1].set_title(f"{type}, SNR={snr_post:.2f}")
             fig.tight_layout()
             fig.savefig(
-                fig_folder / pathlib.Path(f"{type}_reference.jpg"), dpi=800)
+                _fig_folder / pathlib.Path(f"{type}_reference.jpg"), dpi=800)
             plt.close()
         if type is None:
             ax[1].set_title(f"{elecs}, SNR={snr_post:.2f}")
             fig.tight_layout()
             fig.savefig(
-                fig_folder / pathlib.Path(f"{elecs}_reference.jpg"), dpi=800)
+                _fig_folder / pathlib.Path(f"{elecs}_reference.jpg"), dpi=800)
             plt.close()
     return epochs_reref
 
@@ -356,7 +358,7 @@ def autoreject_epochs(epochs,
               title="Mean cross validation error (x 1e6)")
     fig.colorbar(im)
     fig.tight_layout()
-    fig.savefig(fig_folder / pathlib.Path("autoreject_best_fit.jpg"), dpi=800)
+    fig.savefig(_fig_folder / pathlib.Path("autoreject_best_fit.jpg"), dpi=800)
     plt.close()
     evoked_bad = epochs[reject_log.bad_epochs].average()
     snr_ar = analysis.snr(epochs_ar)
@@ -391,7 +393,7 @@ def make_evokeds(epochs, plot=True, baseline=None):
     # evokeds = [epochs[condition].average()
     #           for condition in epochs.event_id.keys()]
     evokeds = epochs.average(by_event_type=True)
-    if plot is True and fig_folder is not None:
+    if plot is True and _fig_folder is not None:
         snr = analysis.snr(epochs)
         avrgd = mne.grand_average(evokeds)
         avrgd.plot_joint(show=False, title=f"SNR: {snr:.2f}")
