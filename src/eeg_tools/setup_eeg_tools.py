@@ -7,7 +7,6 @@ import mne
 from matplotlib import pyplot as plt
 import fnmatch
 
-# TODO: make get_ids() more elegant so that reg ex patterns are found more easily.
 # TODO: all function need root_dir. Find a way to avoid that.
 
 def find(path, mode="pattern", pattern=None, name=None):
@@ -57,8 +56,9 @@ def save_config(config, id, header_files):
 # \b matches on a change from a \w (a word character) to a \W (non word character)
 # \w{6} == six alphanumerical characters
 # RegEx expression to match subject ids (6 alphanumerical characters)
-def get_ids(header_files, regexp=r'\b\w{6}\b'):
+def get_ids(header_files, id_chars):
     ids = []
+    regexp = r'\b\w{%s}\b' % (id_chars)
     for header_file in header_files:
         match = re.search(pattern=regexp, string=header_file)
         if match.group() not in ids:
