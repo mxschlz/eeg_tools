@@ -3,7 +3,7 @@ import pathlib
 import setup_eeg_tools as set
 import os
 
-path = os.getcwd() + "/src/" + "eeg_tools"
+path = os.getcwd() + "\\src\\" + "eeg_tools"
 sys.path.append(path)
 
 """

@@ -14,7 +14,7 @@ import glob
 import sys
 
 
-path = os.getcwd() + "/src/" + "eeg_tools"
+path = os.getcwd() + "\\src\\" + "eeg_tools"
 sys.path.append(path)
 
 # TODO: describe workflow of processing data.

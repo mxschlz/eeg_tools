@@ -6,7 +6,7 @@ from mne.decoding import UnsupervisedSpatialFilter
 from sklearn.decomposition import PCA
 import sys
 import os
-path = os.getcwd() + "/src/" + "eeg_tools"
+path = os.getcwd() + "\\src\\" + "eeg_tools"
 sys.path.append(path)
 import setup_eeg_tools as set
 import pathlib
