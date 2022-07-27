@@ -12,7 +12,10 @@ from mne.preprocessing import ICA
 import json
 import glob
 import sys
-sys.path.append("D:/Projects/eeg_tools/src/eeg_tools")
+
+
+path = os.getcwd() + "/src/" + "eeg_tools"
+sys.path.append(path)
 
 # TODO: describe workflow of processing data.
 # TODO: go through all the functions and make them more elegant.
@@ -23,10 +26,10 @@ def run_pipeline(raw, fig_folder, config, ica_ref):
     Automated preprocessing pipeline for raw EEG data.
 
     The pipeline takes an mne.io.Raw instance and preprocesses it according to
-    the config parameters. Currently available preprocessing options are:
+    the configuration parameters. Currently available preprocessing options are:
     filtering (highpass, lowpass, bandpass, notch);
     epoching;
-    rereferencing (robust average, REST, single or linked reference);
+    rereferencing (robust average, REST, single or linked electrodes);
     ocular artifact rejection (independent component analysis);
     automated threshold rejection (AutoReject).
 
@@ -51,7 +54,7 @@ def run_pipeline(raw, fig_folder, config, ica_ref):
             raw = filtering(data=raw, **config["filtering"])
         if "epochs" in config:
             events = mne.pick_events(
-                mne.events_from_annotations(raw)[0], exclude=**config["epochs"]["exclude"])
+                mne.events_from_annotations(raw)[0], *config["epochs"]["exclude"])
             epochs = mne.Epochs(raw, events=events,
                                 **config["epochs"], preload=True)
             epochs.plot(show=False, show_scalebars=False,
@@ -68,8 +71,8 @@ def run_pipeline(raw, fig_folder, config, ica_ref):
     return epochs
 
 
-def make_raw(header_files, id, fig_folder, ref_ch="FCz", preload=True, add_ref_ch=True,
-             mapping=settings.mapping, montage=settings.montage, plot=True):
+def make_raw(header_files, id, fig_folder, mapping, montage, ref_ch="FCz",
+             preload=True, add_ref_ch=True, plot=True):
     """
     Merges EEG files into an mne.io.Raw instance.
 

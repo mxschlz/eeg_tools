@@ -5,10 +5,11 @@ from mne.datasets import sample
 from mne.decoding import UnsupervisedSpatialFilter
 from sklearn.decomposition import PCA
 import sys
-sys.path.append("D:/Projects/eeg_tools/src/eeg_tools")
+import os
+path = os.getcwd() + "/src/" + "eeg_tools"
+sys.path.append(path)
 import setup_eeg_tools as set
 import pathlib
-import os
 
 # TODO: fix PCA(): make it executable for evoked objects and return more than the first PC.
 # TODO: fix quality_check().

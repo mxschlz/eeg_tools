@@ -1,9 +1,11 @@
 import sys
-sys.path.append("D:/Projects/eeg_tools/src/eeg_tools")
 import pathlib
 import setup_eeg_tools as set
+import os
 
-# TODO: change regexp to make it user friendly.
+path = os.getcwd() + "/src/" + "eeg_tools"
+sys.path.append(path)
+
 """
 This module contains necessary variables for running the preprocessing pipeline \n
 on EEG data.
@@ -22,7 +24,7 @@ root_dir = pathlib.Path(input("Enter path to EEG data here: "))
 try:
     cfg = set.load_file(root_dir, "config")
 except:
-    print("Config file not found. Be sure that EEG data and config file can be found in the entered path.")
+    print("Config file not found. Be sure that EEG data and config file are stored in the entered path.")
 try:
     ica_ref = set.load_file(root_dir, "ica")
 except:
@@ -40,8 +42,8 @@ try:
 except:
     print("VHDR files not found. Be sure that EEG data are stored the entered path.")
 try:
-    regexp = r'\b\w{6}\b'
-    ids = set.get_ids(header_files=header_files, regexp=regexp)
+    id_chars = int(input("Enter subject ID character length: "))
+    ids = set.get_ids(header_files, id_chars)
 except:
     print("IDs could not be extracted. RegEx might be syntactically wrong.")
 
