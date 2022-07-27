@@ -21,7 +21,7 @@ sys.path.append(path)
 # TODO: go through all the functions and make them more elegant.
 
 
-def run_pipeline(raw, fig_folder, config, ica_ref):
+def run_pipeline(raw, fig_folder, config, ica_ref, exclude):
     """
     Automated preprocessing pipeline for raw EEG data.
 
@@ -43,18 +43,20 @@ def run_pipeline(raw, fig_folder, config, ica_ref):
     Returns:
         epochs (mne.Epochs): preprocessed epoched EEG data.
     """
-
+    global plot
     global _fig_folder
     _fig_folder = fig_folder
     if config == None:
         raise FileNotFoundError(
             "Need config file to preprocess data according to parameters!")
+    elif fig_folder == None:
+        plot = False
     else:
         if "filtering" in config:
             raw = filtering(data=raw, **config["filtering"])
         if "epochs" in config:
-            events = mne.pick_events(
-                mne.events_from_annotations(raw)[0], *config["epochs"]["exclude"])
+            events = mne.pick_events(events=mne.events_from_annotations(raw)[0],
+                                     exclude=exclude)
             epochs = mne.Epochs(raw, events=events,
                                 **config["epochs"], preload=True)
             epochs.plot(show=False, show_scalebars=False,
