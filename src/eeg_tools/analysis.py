@@ -11,7 +11,7 @@ sys.path.append(path)
 import setup_eeg_tools as set
 import pathlib
 
-# TODO: fix PCA(): make it executable for evoked objects and return more than the first PC.
+# TODO: fix PCA(): make it executable for evoked objects.
 # TODO: fix quality_check().
 
 
