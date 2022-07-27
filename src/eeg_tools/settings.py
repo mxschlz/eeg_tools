@@ -20,7 +20,7 @@ ids = list of subject ids extracted from header files.
 
 
 # default prerequisites:
-root_dir = pathlib.Path(input("Enter path to EEG data here: "))
+root_dir = pathlib.Path(input("Enter path to EEG data and other relevant files here: "))
 try:
     cfg = set.load_file(root_dir, "config")
 except:

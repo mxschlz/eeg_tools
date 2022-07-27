@@ -231,7 +231,7 @@ def reref(epochs, ransac_parameters=None, type="average", elecs=None, plot=True)
         snr_pre = analysis.snr(epochs)
         snr_post = analysis.snr(epochs_clean)
         epochs_reref = epochs_clean.copy()
-    if type == "rest":
+    elif type == "rest":
         sphere = mne.make_sphere_model("auto", "auto", epochs.info)
         src = mne.setup_volume_source_space(
             sphere=sphere, exclude=30., pos=5.)
@@ -240,11 +240,11 @@ def reref(epochs, ransac_parameters=None, type="average", elecs=None, plot=True)
         epochs_reref = epochs.copy().set_eeg_reference("REST", forward=forward)
         snr_pre = analysis.snr(epochs)
         snr_post = analysis.snr(epochs_reref)
-    if type == "lm":
+    elif type == "lm":
         epochs_reref = epochs.copy().set_eeg_reference(["TP9", "TP10"])
         snr_pre = analysis.snr(epochs)
         snr_post = analysis.snr(epochs_reref)
-    else:
+    elif type == None:
         epochs_reref = epochs.copy().set_eeg_reference(elecs)
     if plot == True:
         fig, ax = plt.subplots(2)
