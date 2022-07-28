@@ -63,13 +63,13 @@ def run_pipeline(raw, fig_folder, config, ica_ref, exclude):
                         show_scrollbars=False, n_channels=20)
             plt.savefig(_fig_folder / pathlib.Path("epochs.jpg"), dpi=800)
             plt.close()
-        if "rereference" in config:
-            epochs = reref(epochs=epochs, **config["rereference"])
         if "ica" in config:
             epochs = apply_ICA(
                 epochs=epochs, **config["ica"], reference=ica_ref)
         if "autoreject" in config:
             epochs = autoreject_epochs(epochs=epochs, **config["autoreject"])
+        if "rereference" in config:
+            epochs = reref(epochs=epochs, **config["rereference"])
     return epochs
 
 
@@ -318,7 +318,7 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
 
 
 def autoreject_epochs(epochs,
-                      n_interpolate=[1, 4, 8, 16],
+                      n_interpolate=[1, 4, 32],
                       consensus=None,
                       cv=10,
                       thresh_method="bayesian optimization",
@@ -336,6 +336,7 @@ def autoreject_epochs(epochs,
         type: description
     """
 
+    epochs.del_proj()
     ar = AutoReject(n_interpolate=n_interpolate, n_jobs=n_jobs)
     ar.fit(epochs)
     epochs_ar, reject_log = ar.transform(epochs, return_log=True)
