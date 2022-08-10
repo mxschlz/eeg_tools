@@ -63,13 +63,13 @@ def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude=None):
                         show_scrollbars=False, n_channels=20)
             plt.savefig(_fig_folder / pathlib.Path("epochs.jpg"), dpi=800)
             plt.close()
+        if "rereference" in config:
+            epochs = reref(epochs=epochs, **config["rereference"])
         if "ica" in config:
             epochs = apply_ICA(
                 epochs=epochs, **config["ica"], reference=ica_ref)
         if "autoreject" in config:
             epochs = autoreject_epochs(epochs=epochs, **config["autoreject"])
-        if "rereference" in config:
-            epochs = reref(epochs=epochs, **config["rereference"])
     return epochs
 
 
@@ -224,10 +224,7 @@ def reref(epochs, ransac_parameters=None, type="average", elecs=None, plot=True)
                 _fig_folder / pathlib.Path("RANSAC_results.jpg"), dpi=800)
             plt.close()
         epochs = epochs_clean.copy()
-        epochs_clean.set_eeg_reference(ref_channels="average", projection=True)
-        average_reference = epochs_clean.info["projs"]
-        epochs_clean.add_proj(average_reference)
-        epochs_clean.apply_proj()
+        epochs_clean.set_eeg_reference(ref_channels="average")
         snr_pre = analysis.snr(epochs)
         snr_post = analysis.snr(epochs_clean)
         epochs_reref = epochs_clean.copy()
@@ -321,7 +318,7 @@ def apply_ICA(epochs, reference=None, n_components=None, method="fastica",
         # ica.fit(epochs_ica[~reject_log.bad_epochs])
         ica.fit(epochs_ica)
         ica.plot_components()
-        ica.plot_sources(inst=epochs, start=0, stop=15, show_scrollbars=False)
+        ica.plot_sources(epochs_ica, start=0, stop=15, show_scrollbars=False, block=True)
         ica.exclude = list((input("Enter components to exclude here (separate several components via spacebar): ").split()))
         ica.exclude = [int(x) for x in ica.exclude]
         ica.apply(epochs_ica, exclude=ica.exclude)
@@ -359,7 +356,7 @@ def autoreject_epochs(epochs,
         type: description
     """
 
-    epochs.del_proj()
+    epochs.del_proj()  # do not project while interpolating
     ar = AutoReject(n_interpolate=n_interpolate, n_jobs=n_jobs)
     ar.fit(epochs)
     epochs_ar, reject_log = ar.transform(epochs, return_log=True)
