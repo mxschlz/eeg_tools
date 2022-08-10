@@ -45,12 +45,6 @@ def load_file(dir, type="mapping", format="json"):
             lf = json.load(file)
         return lf
 
-# WIP
-def save_config(config, id, header_files):
-    for file in header_files:
-        if id in file:
-            file.replace()
-    pass
 
 # r"" == raw string
 # \b matches on a change from a \w (a word character) to a \W (non word character)
@@ -66,7 +60,7 @@ def get_ids(header_files, id_chars):
     return ids
 
 
-def make_folders(root_dir, id=None, folders=["epochs", "raw", "evokeds", "figures"]):
+def generate_folders(root_dir, id=None, folders=["epochs", "raw", "evokeds", "figures"]):
     for root, dirs, files in os.walk(root_dir):
         if root.endswith(id):
             for folder in folders:
