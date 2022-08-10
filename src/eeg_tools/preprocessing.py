@@ -21,7 +21,7 @@ sys.path.append(path)
 # TODO: go through all the functions and make them more elegant.
 
 
-def run_pipeline(raw, fig_folder, config, ica_ref, exclude):
+def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude=None):
     """
     Automated preprocessing pipeline for raw EEG data.
 
@@ -266,8 +266,8 @@ def reref(epochs, ransac_parameters=None, type="average", elecs=None, plot=True)
     return epochs_reref
 
 
-def apply_ICA(epochs, reference, n_components=None, method="fastica",
-              threshold="auto"):
+def apply_ICA(epochs, reference=None, n_components=None, method="fastica",
+              threshold="auto", rejection="manual"):
     """
     Applies independent component analysis to the data.
 
@@ -290,31 +290,54 @@ def apply_ICA(epochs, reference, n_components=None, method="fastica",
     # ar = AutoReject(n_interpolate=n_interpolate, n_jobs=n_jobs)
     # ar.fit(epochs_ica)
     # epochs_ar, reject_log = ar.transform(epochs_ica, return_log=True)
-    ica = ICA(n_components=n_components, method=method)
-    # ica.fit(epochs_ica[~reject_log.bad_epochs])
-    ica.fit(epochs_ica)
-    # reference ICA containing blink and saccade components.
-    ref = reference
-    # .labels_ dict must contain "blinks" key with int values.
-    labels = list(ref.labels_.keys())
-    components = list(ref.labels_.values())
-    for component, label in zip(components, labels):
-        mne.preprocessing.corrmap([ref, ica], template=(0, component[0]),
-                                  label=label, plot=False, threshold=threshold)
-        ica.apply(epochs_ica, exclude=ica.labels_["blinks"])  # apply ICA
-    ica.plot_components(ica.labels_["blinks"], show=False)
-    plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
-    plt.close()
-    ica.plot_sources(inst=epochs, show=False, start=0,
-                     stop=10, show_scrollbars=False)
-    plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
-    plt.close()
-    snr_post_ica = analysis.snr(epochs_ica)
-    ica.plot_overlay(epochs.average(), exclude=ica.labels_["blinks"],
-                     show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
-    plt.savefig(_fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
-    plt.close()
-    return epochs_ica
+    if rejection == "automatic":
+        ica = ICA(n_components=n_components, method=method)
+        # ica.fit(epochs_ica[~reject_log.bad_epochs])
+        ica.fit(epochs_ica)
+        # reference ICA containing blink and saccade components.
+        ref = reference
+        # .labels_ dict must contain "blinks" key with int values.
+        labels = list(ref.labels_.keys())
+        components = list(ref.labels_.values())
+        for component, label in zip(components, labels):
+            mne.preprocessing.corrmap([ref, ica], template=(0, component[0]),
+                                      label=label, plot=False, threshold=threshold)
+            ica.apply(epochs_ica, exclude=ica.labels_["blinks"])  # apply ICA
+        ica.plot_components(ica.labels_["blinks"], show=False)
+        plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
+        plt.close()
+        ica.plot_sources(inst=epochs, show=False, start=0,
+                         stop=15, show_scrollbars=False)
+        plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
+        plt.close()
+        snr_post_ica = analysis.snr(epochs_ica)
+        ica.plot_overlay(epochs.average(), exclude=ica.labels_["blinks"],
+                         show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
+        plt.savefig(_fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
+        plt.close()
+        return epochs_ica
+    if rejection == "manual":
+        ica = ICA(n_components=n_components, method=method)
+        # ica.fit(epochs_ica[~reject_log.bad_epochs])
+        ica.fit(epochs_ica)
+        ica.plot_components()
+        ica.plot_sources(inst=epochs, start=0, stop=15, show_scrollbars=False)
+        ica.exclude = list((input("Enter components to exclude here (separate several components via spacebar): ").split()))
+        ica.exclude = [int(x) for x in ica.exclude]
+        ica.apply(epochs_ica, exclude=ica.exclude)
+        ica.plot_components(ica.exclude, show=False)
+        plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
+        plt.close()
+        ica.plot_sources(inst=epochs, show=False, start=0,
+                         stop=15, show_scrollbars=False)
+        plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
+        plt.close()
+        snr_post_ica = analysis.snr(epochs_ica)
+        ica.plot_overlay(epochs.average(), exclude=ica.exclude,
+                         show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
+        plt.savefig(_fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
+        plt.close()
+        return epochs_ica
 
 
 def autoreject_epochs(epochs,
@@ -406,3 +429,15 @@ def make_evokeds(epochs, plot=True, baseline=None):
         plt.savefig(_fig_folder / pathlib.Path("evokeds.jpg", dpi=800))
         plt.close()
     return evokeds
+
+if "__name__" == "__main__":
+    epochs = set.read_object("epochs", settings.root_dir, settings.ids[5])
+    ica = ICA()
+    # ica.fit(epochs_ica[~reject_log.bad_epochs])
+    ica.fit(epochs)
+    ica.plot_components()
+    ica.plot_sources(epochs)
+    ica.exclude = list((input("Enter components to exclude here (separate several components via spacebar): ").split()))
+    ica.exclude = [int(x) for x in ica.exclude]
+    ica.apply(epochs, exclude=ica.exclude)
+    epochs.average().plot()
