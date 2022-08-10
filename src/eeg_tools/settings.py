@@ -45,7 +45,7 @@ try:
     id_chars = int(input("Enter subject ID character length: "))
     ids = set.get_ids(header_files, id_chars)
 except:
-    print("IDs could not be extracted. RegEx might be syntactically wrong.")
+    print("IDs could not be extracted. RegEx syntax might possibly be wrong.")
 
 # WIP
 def update(id):
