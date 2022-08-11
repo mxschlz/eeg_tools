@@ -317,7 +317,7 @@ def apply_ICA(epochs, reference=None, n_components=None, method="fastica",
         ica = ICA(n_components=n_components, method=method)
         # ica.fit(epochs_ica[~reject_log.bad_epochs])
         ica.fit(epochs_ica)
-        ica.plot_components()
+        ica.plot_components(picks=[x for x in range(20)])
         ica.plot_sources(epochs_ica, start=0, stop=15, show_scrollbars=False, block=True)
         ica.exclude = list((input("Enter components to exclude here (separate several components via spacebar): ").split()))
         ica.exclude = [int(x) for x in ica.exclude]
