@@ -13,13 +13,12 @@ def find(path, mode="pattern", pattern=None, name=None):
     """
     Mode can be "pattern" or "name".
     """
+    result = []
     if mode == "name":
-        result = []
         for root, dirs, files in os.walk(path):
             if name in files:
                 result.append(os.path.join(root, name))
     if mode == "pattern":
-        result = []
         for root, dirs, files in os.walk(path):
             for name in files:
                 if fnmatch.fnmatch(name, pattern):
