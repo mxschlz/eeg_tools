@@ -356,7 +356,6 @@ def autoreject_epochs(epochs,
         type: description
     """
 
-    epochs.del_proj()  # do not project while interpolating
     ar = AutoReject(n_interpolate=n_interpolate, n_jobs=n_jobs)
     ar.fit(epochs)
     epochs_ar, reject_log = ar.transform(epochs, return_log=True)
