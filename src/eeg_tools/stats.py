@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def target_test(evokeds, time_windows, electrodes, conditions, rel=True, parametric=False):
+def target_test(evokeds, time_windows, electrodes, conditions, ind=False, parametric=False):
     index = "time"
     report = "{electrode}, time: {tmin}-{tmax} s; stat={statistic:.3f}, p={p}"
     print("Targeted t-test results:")
@@ -17,19 +17,20 @@ def target_test(evokeds, time_windows, electrodes, conditions, rel=True, paramet
             A = cond0[electrode]
             B = cond1[electrode]
             # conduct t test
-            if rel and not parametric:
+            if ind and not parametric:
                 s, p = scipy.stats.wilcoxon(A, B)
-            elif rel and parametric:
-                s, p = scipy.stats.ttest_rel(A, B)
-            elif not rel and not parametric:
+            elif ind and parametric:
+                s, p = scipy.stats.ttest_ind(A, B)
+            elif not ind and not parametric:
                 s, p = scipy.stats.mannwhitneyu(A, B)
-            elif not rel and parametric:
+            elif not ind and parametric:
                 s, p = scipy.stats.ttest_ind(A, B)
             else:
                 print("Desired test not found. Aborting ... ")
             # display results
             format_dict = dict(electrode=electrode, tmin=tmin, tmax=tmax, statistic=s, p=p)
             print(report.format(**format_dict))
+    return s, p
 
 
 def spatem_test(evokeds, conditions, pval=.05, n_permutations=1000, n_jobs=-1, plot=True):
@@ -69,3 +70,4 @@ if "__name__" == "__main__":
     import settings
     evokeds = analysis.get_evokeds(settings.ids, settings.root_dir, return_average=False)
     spatem_test(evokeds)
+    s, p = target_test(evokeds, time_windows=[(-0.2, 0)], electrodes=["FCz"], conditions=["pinknoise/1", "pinknoise/5"])
