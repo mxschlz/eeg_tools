@@ -64,7 +64,7 @@ def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude=None):
             plt.savefig(_fig_folder / pathlib.Path("epochs.jpg"), dpi=800)
             plt.close()
         if "rereference" in config:
-            epochs = reref(epochs=epochs, **config["rereference"])
+            epochs = set_ref(epochs=epochs, **config["rereference"])
         if "ica" in config:
             epochs = apply_ICA(
                 epochs=epochs, **config["ica"], reference=ica_ref)
@@ -174,7 +174,7 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
     return data
 
 
-def reref(epochs, ransac_parameters=None, type="average", elecs=None, plot=True):
+def set_ref(epochs, ransac_parameters=None, type="average", elecs=None, plot=True):
     """
     Rereferences the data.
 
