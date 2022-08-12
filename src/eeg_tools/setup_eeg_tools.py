@@ -117,30 +117,10 @@ def read_object(data_type, root_dir, id, condition=None):
 def check_id(id, root_dir):
     for root, dirs, files in os.walk(root_dir):
         if root.endswith(id):
-            evokeds_fname = pathlib.Path(root) / "evokeds" / f"{id}-ave.fif"
-            if not os.path.exists(evokeds_fname):
-                print(f"Subject {id} has not been processed yet.")
+            evkd_path = find(root, mode="pattern", pattern="*-ave.fif")
+            if not evkd_path:
+                print(f"Subject {id} has not been processed yet. Starting pipeline ...")
                 return False
-            else:
+            elif evkd_path:
                 print(f"Subject {id} has been processed already. Skipping ...")
                 return True
-
-def make_config(config_dir, config_format=".json"):
-    pass
-
-
-if __name__ == "__main__":  # workflow
-    root_dir = pathlib.Path("D:/EEG")
-    cfg = load_file(type="config", dir=root_dir)
-    mapping = load_file("mapping")
-    montage = load_file("montage")
-    header_files = find(path=root_dir, mode="pattern", pattern="*.vhdr")
-    ica_ref = load_file(type="ica")
-    ids = get_ids(header_files=header_files)
-    id = ids[0]
-    data = read_object("evokeds", root_dir, id, condition=None)
-    mne.viz.plot_compare_evokeds(data)
-    average = mne.grand_average(data)
-    average.plot()
-    for evoked in data:
-        print(evoked.comment)
