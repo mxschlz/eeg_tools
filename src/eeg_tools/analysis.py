@@ -11,11 +11,10 @@ sys.path.append(path)
 import setup_eeg_tools as set
 import pathlib
 
-# TODO: fix PCA(): make it executable for evoked objects.
 # TODO: fix quality_check().
+# make PCA work for more than one component. Right now only works if n_components=1.
 
-
-def noise_rms(epochs):
+def snr(epochs):
     epochs_tmp = epochs.copy()
     n_epochs = epochs_tmp.get_data().shape[0]
     if not n_epochs % 2 == 0:
@@ -24,25 +23,18 @@ def noise_rms(epochs):
     for i in range(n_epochs):
         if not i % 2:
             epochs_tmp.get_data()[i, :, :] = -epochs_tmp.get_data()[i, :, :]
-    evoked = epochs_tmp.average().get_data()
-    rms = np.sqrt(np.mean(evoked**2))
-    del epochs_tmp
-    return rms, evoked
-
-
-def snr(epochs):
-    signals = []
-    n_rms, n_evoked = noise_rms(epochs)
-    for epoch in epochs:
-        signal = epoch - n_evoked
+    noises = epochs_tmp.average().get_data()
+    signals = list()
+    for noise in noises:
+        for epoch in epochs.average().get_data():
+            signal = epoch-noise
         signals.append(signal)
-    signals = np.array(signals)
-    s_rms = np.sqrt(np.mean(signals**2, axis=0))
-    snr = np.mean(s_rms/n_rms)  # signal rms divided by noise rms
-    return snr
+    snr = signals / noises
+    rms = np.mean(np.sqrt(snr**2))
+    return rms
 
 
-def PCA(epochs, n_components=2):
+def PCA(epochs, n_components=1):
     X = epochs.get_data()
     n_epochs, n_channels, n_times = epochs.get_data().shape
     X -= np.expand_dims(X.mean(axis=2), axis=2)  # center data on 0
@@ -71,23 +63,20 @@ def PCA(epochs, n_components=2):
                                      ch_types="eeg"),
                                      tmin=epochs[cond].tmin)
         for component in range(n_components):
-            # pca_evoked.pick_channels(ch_names=list(str(component)) for component in range(n_components)))
-            pca_evokeds.append(pca_evoked.pick_channels(ch_names=list(str(component))))
+            # pca_evokeds[cond] = pca_evoked.pick_channels(ch_names=list(str(component)) for component in range(n_components)))
+             pca_evokeds[cond] = pca_evoked.pick_channels(ch_names=list(str(component)))
     return pca_evokeds
 
 
-def quality_check(ids, fig_size=(60,60), out_folder="D:/EEG/vocal_effort/qc"):
+def quality_check(ids, out_folder, n_figs=12, fig_size=(60,60)):
     if not os.path.isdir(out_folder):
         os.makedirs(pathlib.Path(out_folder))
-    id = ids[0]
-    _fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
-    n_plots = len(os.listdir(_fig_folder))
-    for n, subplots in enumerate(range(n_plots)):
+    for n, subplots in enumerate(range(n_figs)):
         axs_size = int(round(np.sqrt(len(ids)) + 0.5))  # round up
         fig, axs = plt.subplots(axs_size, axs_size, figsize=fig_size)
         axs = axs.flatten()
         for i, id in enumerate(ids):
-            _fig_folder = pathlib.Path(f"D:/EEG/vocal_effort/data/{id}/figures")
+            _fig_folder = pathlib.Path(f"D:/EEG/distance_perception/pinknoise/data/{id}/figures")
             figures = os.listdir(_fig_folder)
             figure_path = _fig_folder / figures[n]
             img = plt.imread(figure_path)
@@ -98,7 +87,7 @@ def quality_check(ids, fig_size=(60,60), out_folder="D:/EEG/vocal_effort/qc"):
         plt.close()
 
 
-def get_evokeds(ids, root_dir, return_average=True):
+def get_evokeds(ids, root_dir, return_average=False):
     all_evokeds = dict()
     for id in ids:
         evokeds = set.read_object("evokeds", root_dir, id)
@@ -114,3 +103,4 @@ def get_evokeds(ids, root_dir, return_average=True):
         return all_evokeds, evokeds_avrgd
     else:
         return all_evokeds
+    
