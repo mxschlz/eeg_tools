@@ -21,7 +21,7 @@ sys.path.append(path)
 # TODO: go through all the functions and make them more elegant.
 
 
-def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude=None):
+def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude_by_id=None):
     """
     Automated preprocessing pipeline for raw EEG data.
 
