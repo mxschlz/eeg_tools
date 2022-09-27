@@ -10,19 +10,19 @@ path = os.getcwd() + "\\src\\" + "eeg_tools"
 sys.path.append(path)
 import setup_eeg_tools as set
 import pathlib
+import settings
 
-# TODO: fix quality_check().
-# make PCA work for more than one component. Right now only works if n_components=1.
+# TODO: make PCA work for more than one component.
+# Right now only works if n_components=1.
 
 def snr(epochs):
     epochs_tmp = epochs.copy()
-    n_epochs = epochs_tmp.get_data().shape[0]
     if not n_epochs % 2 == 0:
         epochs_tmp = epochs_tmp[:-1]
-    n_epochs = epochs_tmp.get_data().shape[0]
     for i in range(n_epochs):
         if not i % 2:
             epochs_tmp.get_data()[i, :, :] = -epochs_tmp.get_data()[i, :, :]
+    n_epochs = epochs_tmp.get_data().shape[0]
     noises = epochs_tmp.average().get_data()
     signals = list()
     for noise in noises:
@@ -68,23 +68,28 @@ def PCA(epochs, n_components=1):
     return pca_evokeds
 
 
-def quality_check(ids, out_folder, n_figs=12, fig_size=(60,60)):
+def quality_check(ids, out_folder, root_dir, n_figs=12, fig_size=(60,60)):
+    axs_size = int(round(np.sqrt(len(ids)) + 0.5))  # round up
+    _fig_paths = set.find(path=root_dir, mode="pattern", pattern="*.jpg")
+    n_sort = n_figs
     if not os.path.isdir(out_folder):
         os.makedirs(pathlib.Path(out_folder))
-    for n, subplots in enumerate(range(n_figs)):
-        axs_size = int(round(np.sqrt(len(ids)) + 0.5))  # round up
+    for figure in range(n_figs):
+        _fig_paths_sorted = _fig_paths[::n_sort]
         fig, axs = plt.subplots(axs_size, axs_size, figsize=fig_size)
         axs = axs.flatten()
-        for i, id in enumerate(ids):
-            _fig_folder = pathlib.Path(f"D:/EEG/distance_perception/pinknoise/data/{id}/figures")
-            figures = os.listdir(_fig_folder)
-            figure_path = _fig_folder / figures[n]
-            img = plt.imread(figure_path)
+        for i, fig_path in enumerate(_fig_paths_sorted):
+            img = plt.imread(fig_path)
             axs[i].imshow(img)
             axs[i].set_axis_off()
-            fig.subplots_adjust(wspace=0, hspace=0)
-        plt.savefig(pathlib.Path(out_folder) / figures[n])
+        fig.subplots_adjust(wspace=0, hspace=0)
+        plt.savefig(pathlib.Path(out_folder / os.path.basename(os.path.normpath(fig_path))))
         plt.close()
+        for fig_path in _fig_paths_sorted:
+            if fig_path in _fig_paths:
+                _fig_paths.remove(fig_path)
+        n_sort -= 1
+        fig.clf()
 
 
 def get_evokeds(ids, root_dir, return_average=False):
@@ -103,4 +108,30 @@ def get_evokeds(ids, root_dir, return_average=False):
         return all_evokeds, evokeds_avrgd
     else:
         return all_evokeds
-    
+
+if __name__ == "__main__":
+    fig_size=(60, 60)
+    n_figs = 12
+    out_folder = settings.root_dir / "qc"
+    ids = settings.ids
+    axs_size = int(round(np.sqrt(len(ids)) + 0.5))  # round up
+    _fig_paths = set.find(path=settings.root_dir, mode="pattern", pattern="*.jpg")
+    n_sort = n_figs
+    if not os.path.isdir(out_folder):
+        os.makedirs(pathlib.Path(out_folder))
+    for figure in range(n_figs):
+        _fig_paths_sorted = _fig_paths[::n_sort]
+        fig, axs = plt.subplots(axs_size, axs_size, figsize=fig_size)
+        axs = axs.flatten()
+        for i, fig_path in enumerate(_fig_paths_sorted):
+            img = plt.imread(fig_path)
+            axs[i].imshow(img)
+            axs[i].set_axis_off()
+        fig.subplots_adjust(wspace=0, hspace=0)
+        plt.savefig(pathlib.Path(out_folder / os.path.basename(os.path.normpath(fig_path))))
+        plt.close()
+        for fig_path in _fig_paths_sorted:
+            if fig_path in _fig_paths:
+                _fig_paths.remove(fig_path)
+        n_sort -= 1
+        fig.clf()
