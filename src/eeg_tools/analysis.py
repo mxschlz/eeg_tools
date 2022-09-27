@@ -12,11 +12,11 @@ import setup_eeg_tools as set
 import pathlib
 import settings
 
-# TODO: make PCA work for more than one component.
-# Right now only works if n_components=1.
+# TODO: make PCA work for more than one component. Right now only works if n_components=1.
 
 def snr(epochs):
     epochs_tmp = epochs.copy()
+    n_epochs = epochs_tmp.get_data().shape[0]
     if not n_epochs % 2 == 0:
         epochs_tmp = epochs_tmp[:-1]
     for i in range(n_epochs):
