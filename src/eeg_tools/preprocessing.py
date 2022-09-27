@@ -1,5 +1,4 @@
 import settings
-from mne.datasets import sample
 import analysis
 import setup_eeg_tools as set
 import os
@@ -9,8 +8,6 @@ import mne
 from matplotlib import pyplot as plt, patches
 from autoreject import AutoReject, Ransac
 from mne.preprocessing import ICA
-import json
-import glob
 import sys
 
 
@@ -38,7 +35,7 @@ def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude_event_id=None):
         fig_folder (string): folder path in which preprocessing steps are documented.
         config (dict): JSON file containing preprocessing parameters.
         ica_ref (mne.preprocessing.ica.ICA): ica reference template for artifact rejection via correlation mapping.
-        exclude (int): exclude events by stimulus annotation. Defaults to None.
+        exclude_event_id (int): exclude events by stimulus annotation. Defaults to None.
 
     Returns:
         epochs (mne.Epochs): preprocessed epoched EEG data.
@@ -56,7 +53,7 @@ def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude_event_id=None):
             raw = filtering(data=raw, **config["filtering"])
         if "epochs" in config:
             events = mne.pick_events(events=mne.events_from_annotations(raw)[0],
-                                     exclude=exclude)
+                                     exclude=exclude_event_id)
             epochs = mne.Epochs(raw, events=events,
                                 **config["epochs"], preload=True)
             epochs.plot(show=False, show_scalebars=False,
