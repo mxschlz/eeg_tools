@@ -21,7 +21,7 @@ sys.path.append(path)
 # TODO: go through all the functions and make them more elegant.
 
 
-def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude_by_id=None):
+def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude_event_id=None):
     """
     Automated preprocessing pipeline for raw EEG data.
 
@@ -269,7 +269,6 @@ def apply_ICA(epochs, reference=None, n_components=None, method="fastica",
     Applies independent component analysis to the data.
 
     Uses a reference template and computes a correlation map for ocular artifact rejection.
-
 
     Args:
         epochs (mne.Epochs):
