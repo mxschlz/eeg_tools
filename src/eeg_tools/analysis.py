@@ -1,9 +1,6 @@
 from matplotlib import pyplot as plt
 import mne
 import numpy as np
-from mne.datasets import sample
-from mne.decoding import UnsupervisedSpatialFilter
-from sklearn.decomposition import PCA
 import sys
 import os
 path = os.getcwd() + "\\src\\" + "eeg_tools"
@@ -19,10 +16,10 @@ def snr(epochs):
     n_epochs = epochs_tmp.get_data().shape[0]
     if not n_epochs % 2 == 0:
         epochs_tmp = epochs_tmp[:-1]
+    n_epochs = epochs_tmp.get_data().shape[0]
     for i in range(n_epochs):
         if not i % 2:
             epochs_tmp.get_data()[i, :, :] = -epochs_tmp.get_data()[i, :, :]
-    n_epochs = epochs_tmp.get_data().shape[0]
     noises = epochs_tmp.average().get_data()
     signals = list()
     for noise in noises:
