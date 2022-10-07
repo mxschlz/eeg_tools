@@ -1,4 +1,3 @@
-import settings
 import analysis
 import setup_eeg_tools as set
 import os
@@ -9,6 +8,7 @@ from matplotlib import pyplot as plt, patches
 from autoreject import AutoReject, Ransac
 from mne.preprocessing import ICA
 import sys
+# from meegkit.dss import dss_line_iter
 
 
 path = os.getcwd() + "\\src\\" + "eeg_tools"
@@ -40,13 +40,13 @@ def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude_event_id=None):
     Returns:
         epochs (mne.Epochs): preprocessed epoched EEG data.
     """
-    global plot
+    global plot  # delete this soon
     global _fig_folder
     _fig_folder = fig_folder
-    if config == None:
+    if not config:
         raise FileNotFoundError(
             "Need config file to preprocess data according to parameters!")
-    elif fig_folder == None:
+    elif not fig_folder:
         plot = False
     else:
         if "filtering" in config:
@@ -141,12 +141,11 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
     ax[0].set(xlabel="Frequency (Hz)", ylabel="μV²/Hz (dB)")
     if plot == True:
         data.plot_psd(ax=ax[0], show=False, exclude=["FCz"])
-    if notch is not None:  # ZapLine Notch filter
+    if notch is not None:  # ZapLine notch filter not working right now.
         X = data.get_data().T
         # remove power line noise with the zapline algorithm
-        X, _ = dss_line_iter(X, fline=cfg["filtering"]["notch"],
-                             sfreq=data.info["sfreq"],
-                             nfft=cfg["filtering"]["nfft"])
+        X, _ = dss_line_iter(X, fline=notch,
+                             sfreq=data.info["sfreq"])
         data._data = X.T  # put the data back into variable
         del X
     if lowpass is not None:
@@ -384,8 +383,7 @@ def autoreject_epochs(epochs,
     evoked_bad = epochs[reject_log.bad_epochs].average()
     snr_ar = analysis.snr(epochs_ar)
     plt.plot(evoked_bad.times, evoked_bad.data.T * 1e06, 'r', zorder=-1)
-    epochs_ar.average().plot(axes=plt.gca(), show=False,
-                             titles=f"SNR: {snr_ar:.2f}")
+    epochs_ar.average().plot(axes=plt.gca(), show=False)
     plt.savefig(
         _fig_folder / pathlib.Path("autoreject_results.jpg"), dpi=800)
     plt.close()
