@@ -1,5 +1,5 @@
 import analysis
-import setup_eeg_tools as set
+import utils
 import os
 import pathlib
 import numpy as np
