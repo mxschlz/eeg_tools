@@ -4,7 +4,7 @@ path = "D:\Projects\eeg_tools\src\eeg_tools"
 sys.path.append(path)
 import preprocessing as pre
 import pathlib
-import setup_eeg_tools as set
+import utils
 import analysis
 import settings
 
