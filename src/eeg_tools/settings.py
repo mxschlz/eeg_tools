@@ -1,6 +1,6 @@
 import sys
 import pathlib
-import setup_eeg_tools as set
+import utils
 import os
 
 path = os.getcwd() + "\\src\\" + "eeg_tools"
