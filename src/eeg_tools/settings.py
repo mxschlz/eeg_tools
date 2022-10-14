@@ -22,28 +22,28 @@ ids = list of subject ids extracted from header files.
 # default prerequisites:
 root_dir = pathlib.Path(input("Enter path to EEG data and other relevant files here: "))
 try:
-    cfg = set.load_file(root_dir, "config")
+    cfg = utils.load_file(root_dir, "config")
 except:
     print("Config file not found. Be sure that EEG data and config file are stored in the entered path.")
 try:
-    ica_ref = set.load_file(root_dir, "ica")
+    ica_ref = utils.load_file(root_dir, "ica")
 except:
     print("ICA template not found. Be sure that EEG data and template file are stored the entered path.")
 try:
-    mapping = set.load_file(root_dir, "mapping")
+    mapping = utils.load_file(root_dir, "mapping")
 except:
     print("Electrode mapping not found. Be sure that EEG data and mapping file are stored the entered path.")
 try:
-    montage = set.load_file(root_dir, "montage")
+    montage = utils.load_file(root_dir, "montage")
 except:
     print("Electrode montage not found. Be sure that EEG data and montage file are stored the entered path.")
 try:
-    header_files = set.find(path=root_dir, mode="pattern", pattern="*.vhdr")
+    header_files = utils.find(path=root_dir, mode="pattern", pattern="*.vhdr")
 except:
     print("VHDR files not found. Be sure that EEG data are stored the entered path.")
 try:
     id_chars = int(input("Enter subject ID character length: "))
-    ids = set.get_ids(header_files, id_chars)
+    ids = utils.get_ids(header_files, id_chars)
 except:
     print("IDs could not be extracted. RegEx syntax might possibly be wrong.")
 
