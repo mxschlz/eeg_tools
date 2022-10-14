@@ -11,8 +11,8 @@ import sys
 # from meegkit.dss import dss_line_iter
 
 
-path = os.getcwd() + "\\src\\" + "eeg_tools"
-sys.path.append(path)
+# path = os.getcwd() + "\\src\\" + "eeg_tools"
+# sys.path.append(path)
 
 # TODO: describe workflow of processing data.
 # TODO: go through all the functions and make them more elegant.
