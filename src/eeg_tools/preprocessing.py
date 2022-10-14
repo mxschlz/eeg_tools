@@ -1,13 +1,10 @@
 import analysis
-import utils
-import os
 import pathlib
 import numpy as np
 import mne
 from matplotlib import pyplot as plt, patches
 from autoreject import AutoReject, Ransac
 from mne.preprocessing import ICA
-import sys
 # from meegkit.dss import dss_line_iter
 
 
