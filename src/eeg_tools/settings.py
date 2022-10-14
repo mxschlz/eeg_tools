@@ -1,10 +1,9 @@
-import sys
+# import sys
 import pathlib
 import utils
-import os
 
-path = os.getcwd() + "\\src\\" + "eeg_tools"
-sys.path.append(path)
+# path = os.getcwd() + "\\src\\" + "eeg_tools"
+# sys.path.append(path)
 
 """
 This module contains necessary variables for running the preprocessing pipeline \n
