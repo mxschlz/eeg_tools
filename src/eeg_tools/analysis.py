@@ -1,10 +1,9 @@
 from matplotlib import pyplot as plt
 import mne
 import numpy as np
-import sys
-import os
-path = os.getcwd() + "\\src\\" + "eeg_tools"
-sys.path.append(path)
+# import os
+# path = os.getcwd() + "\\src\\" + "eeg_tools"
+# sys.path.append(path)
 import utils
 import pathlib
 import settings
