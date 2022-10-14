@@ -6,7 +6,6 @@ import numpy as np
 # sys.path.append(path)
 import utils
 import pathlib
-import settings
 
 # TODO: make PCA work for more than one component. Right now only works if n_components=1.
 
@@ -66,7 +65,7 @@ def PCA(epochs, n_components=1):
 
 def quality_check(ids, out_folder, root_dir, n_figs=12, fig_size=(60,60)):
     axs_size = int(round(np.sqrt(len(ids)) + 0.5))  # round up
-    _fig_paths = set.find(path=root_dir, mode="pattern", pattern="*.jpg")
+    _fig_paths = utils.find(path=root_dir, mode="pattern", pattern="*.jpg")
     n_sort = n_figs
     if not os.path.isdir(out_folder):
         os.makedirs(pathlib.Path(out_folder))
@@ -91,7 +90,7 @@ def quality_check(ids, out_folder, root_dir, n_figs=12, fig_size=(60,60)):
 def get_evokeds(ids, root_dir, return_average=False):
     all_evokeds = dict()
     for id in ids:
-        evokeds = set.read_object("evokeds", root_dir, id)
+        evokeds = utils.read_object("evokeds", root_dir, id)
         for condition in evokeds:
             if condition.comment not in all_evokeds.keys():
                 all_evokeds[condition.comment] = [condition]
@@ -105,29 +104,3 @@ def get_evokeds(ids, root_dir, return_average=False):
     else:
         return all_evokeds
 
-if __name__ == "__main__":
-    fig_size=(60, 60)
-    n_figs = 12
-    out_folder = settings.root_dir / "qc"
-    ids = settings.ids
-    axs_size = int(round(np.sqrt(len(ids)) + 0.5))  # round up
-    _fig_paths = set.find(path=settings.root_dir, mode="pattern", pattern="*.jpg")
-    n_sort = n_figs
-    if not os.path.isdir(out_folder):
-        os.makedirs(pathlib.Path(out_folder))
-    for figure in range(n_figs):
-        _fig_paths_sorted = _fig_paths[::n_sort]
-        fig, axs = plt.subplots(axs_size, axs_size, figsize=fig_size)
-        axs = axs.flatten()
-        for i, fig_path in enumerate(_fig_paths_sorted):
-            img = plt.imread(fig_path)
-            axs[i].imshow(img)
-            axs[i].set_axis_off()
-        fig.subplots_adjust(wspace=0, hspace=0)
-        plt.savefig(pathlib.Path(out_folder / os.path.basename(os.path.normpath(fig_path))))
-        plt.close()
-        for fig_path in _fig_paths_sorted:
-            if fig_path in _fig_paths:
-                _fig_paths.remove(fig_path)
-        n_sort -= 1
-        fig.clf()
