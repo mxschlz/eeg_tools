@@ -1,10 +1,8 @@
-import glob
 import os
 import pathlib
 import re
 import json
 import mne
-from matplotlib import pyplot as plt
 import fnmatch
 
 # TODO: all function need root_dir. Find a way to avoid that.
