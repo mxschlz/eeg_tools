@@ -136,7 +136,7 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
     ax[1].set_title("After filtering")
     ax[1].set(xlabel="Frequency (Hz)", ylabel="μV²/Hz (dB)")
     ax[0].set(xlabel="Frequency (Hz)", ylabel="μV²/Hz (dB)")
-    if plot == True:
+    if plot:
         data.plot_psd(ax=ax[0], show=False, exclude=["FCz"])
     if notch is not None:  # ZapLine notch filter not working right now.
         X = data.get_data().T
@@ -149,7 +149,7 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
         data.filter(h_freq=lowpass, l_freq=None)
     if highpass is not None:
         data.filter(h_freq=None, l_freq=highpass)
-    if plot == True:
+    if plot:
         data.plot_psd(ax=ax[1], show=False, exclude=["FCz"])
     if lowpass is not None and highpass == None:
         fig.savefig(
@@ -163,7 +163,8 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
     if notch is not None:
         fig.savefig(
             _fig_folder / pathlib.Path("ZapLine_filter.jpg"), dpi=800)
-    plt.close()
+    if plot:
+        plt.close()
     return data
 
 
@@ -236,7 +237,7 @@ def set_ref(epochs, ransac_parameters=None, type="average", elecs=None, plot=Tru
         snr_post = analysis.snr(epochs_reref)
     elif type == None:
         epochs_reref = epochs.copy().set_eeg_reference(elecs)
-    if plot == True:
+    if plot:
         fig, ax = plt.subplots(2)
         epochs.average().plot(axes=ax[0], show=False)
         epochs_reref.average().plot(axes=ax[1], show=False)
@@ -257,20 +258,18 @@ def set_ref(epochs, ransac_parameters=None, type="average", elecs=None, plot=Tru
 
 
 def apply_ICA(epochs, reference=None, n_components=None, method="fastica",
-              threshold="auto", rejection="manual"):
+              threshold="auto", rejection="manual", plot=True):
     """
-    Applies independent component analysis to the data.
-
-    Uses a reference template and computes a correlation map for ocular artifact rejection.
 
     Args:
-        epochs (mne.Epochs):
+        epochs:
+        reference:
+        n_components:
+        method:
+        threshold:
+        rejection:
 
     Returns:
-        type: description
-
-    Raises:
-        Exception: description
 
     """
 
@@ -292,18 +291,19 @@ def apply_ICA(epochs, reference=None, n_components=None, method="fastica",
             mne.preprocessing.corrmap([ref, ica], template=(0, component[0]),
                                       label=label, plot=False, threshold=threshold)
             ica.apply(epochs_ica, exclude=ica.labels_["blinks"])  # apply ICA
-        ica.plot_components(ica.labels_["blinks"], show=False)
-        plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
-        plt.close()
-        ica.plot_sources(inst=epochs, show=False, start=0,
-                         stop=15, show_scrollbars=False)
-        plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
-        plt.close()
-        snr_post_ica = analysis.snr(epochs_ica)
-        ica.plot_overlay(epochs.average(), exclude=ica.labels_["blinks"],
-                         show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
-        plt.savefig(_fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
-        plt.close()
+        if plot:
+            ica.plot_components(ica.labels_["blinks"], show=False)
+            plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
+            plt.close()
+            ica.plot_sources(inst=epochs, show=False, start=0,
+                             stop=15, show_scrollbars=False)
+            plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
+            plt.close()
+            snr_post_ica = analysis.snr(epochs_ica)
+            ica.plot_overlay(epochs.average(), exclude=ica.labels_["blinks"],
+                             show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
+            plt.savefig(_fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
+            plt.close()
         return epochs_ica
     if rejection == "manual":
         ica = ICA(n_components=n_components, method=method)
@@ -314,18 +314,19 @@ def apply_ICA(epochs, reference=None, n_components=None, method="fastica",
         ica.exclude = list((input("Enter components to exclude here (separate several components via spacebar): ").split()))
         ica.exclude = [int(x) for x in ica.exclude]
         ica.apply(epochs_ica, exclude=ica.exclude)
-        ica.plot_components(ica.exclude, show=False)
-        plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
-        plt.close()
-        ica.plot_sources(inst=epochs, show=False, start=0,
-                         stop=15, show_scrollbars=False)
-        plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
-        plt.close()
-        snr_post_ica = analysis.snr(epochs_ica)
-        ica.plot_overlay(epochs.average(), exclude=ica.exclude,
-                         show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
-        plt.savefig(_fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
-        plt.close()
+        if plot:
+            ica.plot_components(ica.exclude, show=False)
+            plt.savefig(_fig_folder / pathlib.Path("ICA_components.jpg"), dpi=800)
+            plt.close()
+            ica.plot_sources(inst=epochs, show=False, start=0,
+                             stop=15, show_scrollbars=False)
+            plt.savefig(_fig_folder / pathlib.Path(f"ICA_sources.jpg"), dpi=800)
+            plt.close()
+            snr_post_ica = analysis.snr(epochs_ica)
+            ica.plot_overlay(epochs.average(), exclude=ica.exclude,
+                             show=False, title=f"SNR: {snr_pre_ica:.2f} (before), {snr_post_ica:.2f} (after)")
+            plt.savefig(_fig_folder / pathlib.Path("ICA_results.jpg"), dpi=800)
+            plt.close()
         return epochs_ica
 
 
@@ -335,7 +336,8 @@ def autoreject_epochs(epochs,
                       cv=10,
                       thresh_method="bayesian optimization",
                       n_jobs=-1,
-                      random_state=None):
+                      random_state=None,
+                      plot=True):
     """
     A short description.
 
@@ -351,43 +353,45 @@ def autoreject_epochs(epochs,
     ar = AutoReject(n_interpolate=n_interpolate, n_jobs=n_jobs)
     ar.fit(epochs)
     epochs_ar, reject_log = ar.transform(epochs, return_log=True)
-    fig, ax = plt.subplots(2)
-    # plotipyt histogram of rejection thresholds
-    ax[0].set_title("Rejection Thresholds")
-    ax[0].hist(1e6 * np.array(list(ar.threshes_.values())), 30,
-               color="g", alpha=0.4)
-    ax[0].set(xlabel="Threshold (μV)", ylabel="Number of sensors")
-    # plot cross validation error:
-    loss = ar.loss_["eeg"].mean(axis=-1)  # losses are stored by channel type.
-    im = ax[1].matshow(loss.T * 1e6, cmap=plt.get_cmap("viridis"))
-    ax[1].set_xticks(range(len(ar.consensus)))
-    ax[1].set_xticklabels(["%.1f" % c for c in ar.consensus])
-    ax[1].set_yticks(range(len(ar.n_interpolate)))
-    ax[1].set_yticklabels(ar.n_interpolate)
-    # Draw rectangle at location of best parameters
-    idx, jdx = np.unravel_index(loss.argmin(), loss.shape)
-    rect = patches.Rectangle((idx - 0.5, jdx - 0.5), 1, 1, linewidth=2,
-                             edgecolor="r", facecolor="none")
-    ax[1].add_patch(rect)
-    ax[1].xaxis.set_ticks_position("bottom")
-    ax[1].set(xlabel=r"Consensus percentage $\kappa$",
-              ylabel=r"Max sensors interpolated $\rho$",
-              title="Mean cross validation error (x 1e6)")
-    fig.colorbar(im)
-    fig.tight_layout()
-    fig.savefig(_fig_folder / pathlib.Path("autoreject_best_fit.jpg"), dpi=800)
-    plt.close()
+    if plot:
+        fig, ax = plt.subplots(2)
+        # plotipyt histogram of rejection thresholds
+        ax[0].set_title("Rejection Thresholds")
+        ax[0].hist(1e6 * np.array(list(ar.threshes_.values())), 30,
+                   color="g", alpha=0.4)
+        ax[0].set(xlabel="Threshold (μV)", ylabel="Number of sensors")
+        # plot cross validation error:
+        loss = ar.loss_["eeg"].mean(axis=-1)  # losses are stored by channel type.
+        im = ax[1].matshow(loss.T * 1e6, cmap=plt.get_cmap("viridis"))
+        ax[1].set_xticks(range(len(ar.consensus)))
+        ax[1].set_xticklabels(["%.1f" % c for c in ar.consensus])
+        ax[1].set_yticks(range(len(ar.n_interpolate)))
+        ax[1].set_yticklabels(ar.n_interpolate)
+        # Draw rectangle at location of best parameters
+        idx, jdx = np.unravel_index(loss.argmin(), loss.shape)
+        rect = patches.Rectangle((idx - 0.5, jdx - 0.5), 1, 1, linewidth=2,
+                                 edgecolor="r", facecolor="none")
+        ax[1].add_patch(rect)
+        ax[1].xaxis.set_ticks_position("bottom")
+        ax[1].set(xlabel=r"Consensus percentage $\kappa$",
+                  ylabel=r"Max sensors interpolated $\rho$",
+                  title="Mean cross validation error (x 1e6)")
+        fig.colorbar(im)
+        fig.tight_layout()
+        fig.savefig(_fig_folder / pathlib.Path("autoreject_best_fit.jpg"), dpi=800)
+        plt.close()
     evoked_bad = epochs[reject_log.bad_epochs].average()
     snr_ar = analysis.snr(epochs_ar)
-    plt.plot(evoked_bad.times, evoked_bad.data.T * 1e06, 'r', zorder=-1)
-    epochs_ar.average().plot(axes=plt.gca(), show=False)
-    plt.savefig(
-        _fig_folder / pathlib.Path("autoreject_results.jpg"), dpi=800)
-    plt.close()
-    epochs_ar.plot_drop_log(show=False)
-    plt.savefig(
-        _fig_folder / pathlib.Path("epochs_drop_log.jpg"), dpi=800)
-    plt.close()
+    if plot:
+        plt.plot(evoked_bad.times, evoked_bad.data.T * 1e06, 'r', zorder=-1)
+        epochs_ar.average().plot(axes=plt.gca(), show=False)
+        plt.savefig(
+            _fig_folder / pathlib.Path("autoreject_results.jpg"), dpi=800)
+        plt.close()
+        epochs_ar.plot_drop_log(show=False)
+        plt.savefig(
+            _fig_folder / pathlib.Path("epochs_drop_log.jpg"), dpi=800)
+        plt.close()
     return epochs_ar
 
 
@@ -416,15 +420,3 @@ def make_evokeds(epochs, plot=True, baseline=None):
         plt.savefig(_fig_folder / pathlib.Path("evokeds.jpg", dpi=800))
         plt.close()
     return evokeds
-
-if "__name__" == "__main__":
-    epochs = set.read_object("epochs", settings.root_dir, settings.ids[5])
-    ica = ICA()
-    # ica.fit(epochs_ica[~reject_log.bad_epochs])
-    ica.fit(epochs)
-    ica.plot_components()
-    ica.plot_sources(epochs)
-    ica.exclude = list((input("Enter components to exclude here (separate several components via spacebar): ").split()))
-    ica.exclude = [int(x) for x in ica.exclude]
-    ica.apply(epochs, exclude=ica.exclude)
-    epochs.average().plot()
