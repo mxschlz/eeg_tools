@@ -2,9 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/../BinauralLocalizationCNN_modified/.idea/BinauralLocalizationCNN_modified.iml" filepath="$PROJECT_DIR$/../BinauralLocalizationCNN_modified/.idea/BinauralLocalizationCNN_modified.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/eeg_tools.iml" filepath="$PROJECT_DIR$/.idea/eeg_tools.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../mse/.idea/mse.iml" filepath="$PROJECT_DIR$/../mse/.idea/mse.iml" />
     </modules>
   </component>
 </project>
