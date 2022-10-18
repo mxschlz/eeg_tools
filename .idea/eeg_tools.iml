@@ -8,6 +8,10 @@
     <orderEntry type="jdk" jdkName="Python 3.10 (eeg_tools)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="BinauralLocalizationCNN_modified" />
+    <orderEntry type="module" module-name="mse" />
+  </component>
+  <component name="PackageRequirementsSettings">
+    <option name="requirementsPath" value="" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="GOOGLE" />
