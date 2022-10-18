@@ -2,8 +2,7 @@
   "filtering": {
     "highpass": 1,
     "lowpass": 40,
-    "notch": null,
-    "plot": true
+    "notch": null
   },
   "epochs": {
     "event_id": {
