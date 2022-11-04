@@ -137,7 +137,7 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
     ax[1].set(xlabel="Frequency (Hz)", ylabel="μV²/Hz (dB)")
     ax[0].set(xlabel="Frequency (Hz)", ylabel="μV²/Hz (dB)")
     if plot:
-        data.compute_psd().plot(ax=ax[0], show=False, exclude=["FCz"])
+        data.plot_psd(ax=ax[0], show=False, exclude=["FCz"])
     if notch is not None:  # ZapLine notch filter not working right now.
         X = data.get_data().T
         # remove power line noise with the zapline algorithm
@@ -150,7 +150,7 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
     if highpass is not None:
         data.filter(h_freq=None, l_freq=highpass)
     if plot:
-        data.compute_psd().plot(ax=ax[1], show=False, exclude=["FCz"])
+        data.plot_psd(ax=ax[1], show=False, exclude=["FCz"])
     if lowpass is not None and highpass == None:
         fig.savefig(
             _fig_folder / pathlib.Path("lowpassfilter.jpg"), dpi=800)
