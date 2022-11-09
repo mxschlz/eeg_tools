@@ -13,6 +13,7 @@ from mne.preprocessing import ICA
 
 # TODO: describe workflow of processing data.
 # TODO: go through all the functions and make them more elegant.
+# TODO: implement notch filter and general filtering alternatives.
 
 
 def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude_event_id=None):
@@ -115,19 +116,19 @@ def filtering(data, notch=None, highpass=None, lowpass=None, plot=True):
     """
     Applies FIR (finite impulse response) filter to the data.
 
-    Filter can be either highpass, lowpass, bandpass or a notch filter.
+    Filter can be either highpass, lowpass, a combination of those (bandpass) or a notch filter.
     Optionally, save the data plots before and after filtering.
 
     Args:
-        data (mne.io.Raw, mne.Epochs, mne.Evoked): data to be filtered. Usually,
+        data (mne.io.Raw|mne.Epochs|mne.Evoked): data to be filtered. Usually,
         continuous time series data is preferred to avoid disturbances by the filter design.
         notch (int): frequency to be filtered. Example: 50 to filter out power line noise.
-        highpass (int / float): applies a highpass filter at given frequency.
-        lowpass (int / float): applies a lowpass filter at given frequency.
+        highpass (int|float): applies a highpass filter at given frequency.
+        lowpass (int|float): applies a lowpass filter at given frequency.
         plot (bool): if True, saves the data as a plot before and after filtering.
 
     Returns:
-        data: filtered mne instance.
+        mne.io.preprocessing.Raw object
     """
 
     fig, ax = plt.subplots(2, sharex=True, sharey=True)
@@ -181,16 +182,16 @@ def set_ref(epochs, ransac_parameters=None, type="average", elecs=None, plot=Tru
 
     Args:
         epochs (mne.Epochs): mne.Epochs instance to be rereferenced.
-        ransac_parameters (dict / None): parameters for the RANSAC algorithm. (https://autoreject.github.io/stable/generated/autoreject.Ransac.html#autoreject.Ransac)
+        ransac_parameters (dict|None): parameters for the RANSAC algorithm. (https://autoreject.github.io/stable/generated/autoreject.Ransac.html#autoreject.Ransac)
                                          If None, use default parameters.
-        type (str/None): reference type. Can be "average", "lm", "rest" or None.
+        type (str|None): reference type. Can be "average", "lm", "rest" or None.
                          If None, see elecs argument.
-        elecs (str/list of str/None): If type == None, enter reference name as string.
+        elecs (str|list of str/None): If type == None, enter reference name as string.
                                       If reference should consist of more than one electrode, insert list of strings.
-        plot (bool): if True, saves a figure of the data before and after rereferencing.
+        plot (bool): if True, saves a figure of the data before and after re-referencing.
 
     Returns:
-        epochs: rereferenced epochs.
+        mne.Epochs object
     """
 
     if type == "average":
@@ -260,17 +261,23 @@ def set_ref(epochs, ransac_parameters=None, type="average", elecs=None, plot=Tru
 def apply_ICA(epochs, reference=None, n_components=None, method="fastica",
               threshold="auto", rejection="manual", plot=True):
     """
+    Removes brain unrelated activity in the epoched data.
+
+    Applies an independent component analysis by fitting the epoched data into an ICA model, selecting independent components and remove them from the dataset. For detailed documentation about artifact removal using ICA, see: https://mne.tools/stable/auto_tutorials/preprocessing/40_artifact_correction_ica.html.
 
     Args:
-        epochs:
-        reference:
-        n_components:
-        method:
-        threshold:
-        rejection:
+        epochs (mne.Epochs):
+        reference (None|str): filepath to the ICA reference.
+        n_components (Int|float|None: Number of principal components (from the pre-whitening PCA step) that are passed to the ICA algorithm during fitting.
+        method (‘fastica’ | ‘infomax’ | ‘picard’): The ICA method to use in the fit method.
+        Use the fit_params argument to set additional parameters. Defaults to 'fastica'
+        threshold ("auto"|float between 0 and 1): Minimum correlation percentage when using ICA template as reference.
+        When "auto", computes best correlation percentage.
+        rejection ("automatic"|"manual"): The rejection method to use. If "manual", plots time course and topographies of the components for the user to decide which component to exclude. If "automatic", ICA reference template must be provided and rejection is done automatically. Defaults to "manual".
+        plot (bool): if True, saves plots for documentation.
 
     Returns:
-
+            mne.Epochs object.
     """
 
     epochs_ica = epochs.copy()
@@ -339,15 +346,20 @@ def autoreject_epochs(epochs,
                       random_state=None,
                       plot=True):
     """
-    A short description.
-
-    A bit longer description.
+    Automatically rejects epochs in the data based on peak-to-peak threshold estimation specifically for each epoch channel-wise.
 
     Args:
-        variable (type): description
+        epochs (mne.Epochs): The data to process.
+        n_interpolate (None|array): The values to try for the number of channels for which to interpolate. This is rho. If None, defaults to np.array([1, 4, 32])
+        consensus (None|array): The values to try for percentage of channels that must agree as a fraction of the total number of channels. This sets kappa. If None, defaults to np.linspace(0, 1.0, 11).
+        cv (int|sklearn.model_selection object): Defaults to cv=10.
+        thresh_method (str): ‘bayesian_optimization’ or ‘random_search’.
+        n_jobs (int): The number of jobs. n_jobs = -1 uses maximum amount of parallel jobs, resulting in fastest computation.
+        random_state (int|np.random.RandomState|None): The seed of the pseudo random number generator to use. Defaults to None.
+        plot (bool): if True, saves plots for documentation of the processing step.
 
     Returns:
-        type: description
+            mne.Epochs oject.
     """
 
     ar = AutoReject(n_interpolate=n_interpolate, n_jobs=n_jobs)
@@ -397,15 +409,14 @@ def autoreject_epochs(epochs,
 
 def make_evokeds(epochs, plot=True, baseline=None):
     """
-    A short description.
-
-    A bit longer description.
-
+    Generate evoked responses from epoched data by averaging. Optionally apply a baseline
     Args:
-        variable (type): description
+        epochs:
+        plot:
+        baseline:
 
     Returns:
-        type: description
+            mne.Evoked object.
     """
 
     if baseline is not None:
