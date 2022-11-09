@@ -1,13 +1,16 @@
 from matplotlib import pyplot as plt
 import mne
 import numpy as np
-# import os
+import os
+# import sys
 # path = os.getcwd() + "\\src\\" + "eeg_tools"
 # sys.path.append(path)
 import utils
 import pathlib
+import random
 
 # TODO: make PCA work for more than one component. Right now only works if n_components=1.
+# TODO: randomize the average noise.
 
 def snr(epochs):
     epochs_tmp = epochs.copy()
@@ -19,11 +22,12 @@ def snr(epochs):
         if not i % 2:
             epochs_tmp.get_data()[i, :, :] = -epochs_tmp.get_data()[i, :, :]
     noises = epochs_tmp.average().get_data()
-    signals = list()
-    for noise in noises:
+    shuffled_noises = shuffle_along_axis(noises, axis=1)
+    signals = shuffled_noises.copy()
+    for idx, noise in enumerate(shuffled_noises):
         for epoch in epochs.average().get_data():
             signal = epoch-noise
-        signals.append(signal)
+        signals[idx] = signal
     snr = signals / noises
     rms = np.mean(np.sqrt(snr**2))
     return rms
@@ -104,3 +108,27 @@ def get_evokeds(ids, root_dir, return_average=False):
     else:
         return all_evokeds
 
+def shuffle_along_axis(a, axis):
+    idx = np.random.rand(*a.shape).argsort(axis=axis)
+    return np.take_along_axis(a,idx,axis=axis)
+
+if __name__ == "__main__":
+    from matplotlib import pyplot as plt
+    epochs = mne.read_epochs("D:\EEG\distance_perception\pinknoise\data\\03d3rc\epochs\\03d3rc-epo.fif")
+    epochs_tmp = epochs.copy()
+    n_epochs = epochs_tmp.get_data().shape[0]
+    if not n_epochs % 2 == 0:
+        epochs_tmp = epochs_tmp[:-1]
+    n_epochs = epochs_tmp.get_data().shape[0]
+    for i in range(n_epochs):
+        if not i % 2:
+            epochs_tmp.get_data()[i, :, :] = -epochs_tmp.get_data()[i, :, :]
+    noises = epochs_tmp.average().get_data()
+    shuffled_noises = shuffle_along_axis(noises, axis=1)
+    signals = noises.copy()
+    for idx, noise in enumerate(shuffled_noises):
+        for epoch in epochs.average().get_data():
+            signal = epoch-noise
+        signals[idx] = signal
+    snr = signals / noises
+    rms = np.mean(np.sqrt(snr**2))
