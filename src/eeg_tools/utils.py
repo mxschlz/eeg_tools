@@ -7,24 +7,25 @@ import fnmatch
 
 # TODO: all function need root_dir. Find a way to avoid that.
 
-def find(path, mode="pattern", pattern=None, name=None):
+
+def find(path, mode="pattern", pattern=None, string=None):
     """
     Mode can be "pattern" or "name".
     """
-    result = []
-    if mode == "name":
+    found_files = []
+    if mode == "string":
         for root, dirs, files in os.walk(path):
-            if name in files:
-                result.append(os.path.join(root, name))
+            if string in files:
+                found_files.append(os.path.join(root, string))
     if mode == "pattern":
         for root, dirs, files in os.walk(path):
             for name in files:
                 if fnmatch.fnmatch(name, pattern):
-                    result.append(os.path.join(root, name))
-    if len(result) == 1:
-        return result[0]
+                    found_files.append(os.path.join(root, name))
+    if len(found_files) == 1:
+        return found_files[0]
     else:
-        return result
+        return found_files
 
 
 def load_file(dir, type="mapping", format="json"):

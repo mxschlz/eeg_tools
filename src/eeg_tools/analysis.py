@@ -1,4 +1,3 @@
-from matplotlib import pyplot as plt
 import mne
 import numpy as np
 import os
@@ -7,10 +6,12 @@ import os
 # sys.path.append(path)
 import utils
 import pathlib
-import random
 
 # TODO: make PCA work for more than one component. Right now only works if n_components=1.
-# TODO: randomize the average noise.
+
+def shuffle_along_axis(a, axis):
+    idx = np.random.rand(*a.shape).argsort(axis=axis)
+    return np.take_along_axis(a,idx,axis=axis)
 
 def snr(epochs):
     epochs_tmp = epochs.copy()
@@ -108,13 +109,26 @@ def get_evokeds(ids, root_dir, return_average=False):
     else:
         return all_evokeds
 
-def shuffle_along_axis(a, axis):
-    idx = np.random.rand(*a.shape).argsort(axis=axis)
-    return np.take_along_axis(a,idx,axis=axis)
+
 
 if __name__ == "__main__":
+    import sys
+    import os
+    path = os.getcwd() + "\\src\\" + "eeg_tools"
+    sys.path.append(path)
     from matplotlib import pyplot as plt
-    epochs = mne.read_epochs("D:\EEG\distance_perception\pinknoise\data\\03d3rc\epochs\\03d3rc-epo.fif")
+    import settings
+    from autoreject import Ransac
+    import mne
+    import numpy as np
+    import utils
+    import pathlib
+    import preprocessing
+    raw = mne.io.read_raw_fif("D:\EEG\distance_perception\pinknoise\data\\2ojf8e\\raw\\2ojf8e_raw.fif", preload=True)
+    raw.filter(1, 40)
+    events = mne.pick_events(events=mne.events_from_annotations(raw)[0], exclude=1)
+    epochs = mne.Epochs(raw, events=events, **settings.cfg["epochs"], preload=True)
+    epochs = preprocessing.set_ref(epochs, **settings.cfg["rereference"], plot=False)
     epochs_tmp = epochs.copy()
     n_epochs = epochs_tmp.get_data().shape[0]
     if not n_epochs % 2 == 0:
@@ -125,7 +139,7 @@ if __name__ == "__main__":
             epochs_tmp.get_data()[i, :, :] = -epochs_tmp.get_data()[i, :, :]
     noises = epochs_tmp.average().get_data()
     shuffled_noises = shuffle_along_axis(noises, axis=1)
-    signals = noises.copy()
+    signals = shuffled_noises.copy()
     for idx, noise in enumerate(shuffled_noises):
         for epoch in epochs.average().get_data():
             signal = epoch-noise

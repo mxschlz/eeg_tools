@@ -14,6 +14,7 @@ from mne.preprocessing import ICA
 # TODO: describe workflow of processing data.
 # TODO: go through all the functions and make them more elegant.
 # TODO: implement notch filter and general filtering alternatives.
+# TODO: set_ref() uses 65 channels before referencering to calculate snr, one containing only zeros. Exclude the last channel.
 
 
 def run_pipeline(raw, fig_folder, config, ica_ref=None, exclude_event_id=None):
@@ -196,7 +197,10 @@ def set_ref(epochs, ransac_parameters=None, type="average", elecs=None, plot=Tru
 
     if type == "average":
         epochs_clean = epochs.copy()
-        ransac = Ransac(**ransac_parameters)  # optimize speed
+        if ransac_parameters:
+            ransac = Ransac(**ransac_parameters)
+        else:
+            ransac = Ransac()
         ransac.fit(epochs_clean)
         epochs_clean.average().plot(exclude=[])
         bads = input(

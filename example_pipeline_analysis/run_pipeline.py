@@ -1,5 +1,4 @@
 import sys
-import os
 path = "D:\Projects\eeg_tools\src\eeg_tools"
 sys.path.append(path)
 import preprocessing as pre
@@ -32,3 +31,4 @@ for id in settings.ids[:1]:  # loop through all ids
 
 # After running the pipeline over all participants, do:
 analysis.quality_check(settings.ids, out_folder=settings.root_dir/"qc")
+
