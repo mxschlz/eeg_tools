@@ -7,16 +7,15 @@ import fnmatch
 
 # TODO: all function need root_dir. Find a way to avoid that.
 
-
-def find(path, mode="pattern", pattern=None, string=None):
+def find(path, mode="pattern", pattern=None, name=None):
     """
     Mode can be "pattern" or "name".
     """
     found_files = []
-    if mode == "string":
+    if mode == "name":
         for root, dirs, files in os.walk(path):
-            if string in files:
-                found_files.append(os.path.join(root, string))
+            if name in files:
+                found_files.append(os.path.join(root, name))
     if mode == "pattern":
         for root, dirs, files in os.walk(path):
             for name in files:

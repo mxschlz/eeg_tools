@@ -9,9 +9,9 @@ import pathlib
 
 # TODO: make PCA work for more than one component. Right now only works if n_components=1.
 
-def shuffle_along_axis(a, axis):
-    idx = np.random.rand(*a.shape).argsort(axis=axis)
-    return np.take_along_axis(a,idx,axis=axis)
+def _shuffle_along_axis(data, axis):
+    idx = np.random.rand(*data.shape).argsort(axis=axis)
+    return np.take_along_axis(data, idx, axis=axis)
 
 def snr(epochs):
     epochs_tmp = epochs.copy()
@@ -23,7 +23,7 @@ def snr(epochs):
         if not i % 2:
             epochs_tmp.get_data()[i, :, :] = -epochs_tmp.get_data()[i, :, :]
     noises = epochs_tmp.average().get_data()
-    shuffled_noises = shuffle_along_axis(noises, axis=1)
+    shuffled_noises = _shuffle_along_axis(noises, axis=1)
     signals = shuffled_noises.copy()
     for idx, noise in enumerate(shuffled_noises):
         for epoch in epochs.average().get_data():
