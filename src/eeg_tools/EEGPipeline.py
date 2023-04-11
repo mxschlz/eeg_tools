@@ -9,6 +9,7 @@ class Pipeline:
         evoked_dir = None
 
         # Objects
+        subject_id = list  # length in list defines how many subjects are being processed
         raws = None
         epochs = None
         evokeds = None
@@ -19,4 +20,4 @@ class Pipeline:
 
         # Necessary files for preprocessing
         if root_dir:
-            mapping =
+            mapping = None
